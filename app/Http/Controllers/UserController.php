@@ -45,17 +45,24 @@ class UserController extends Controller
         return redirect()->back()->with('message', 'Akun berhasil dibuat.');
     }
 
-    // FITUR BARU: Update Role
+    // FITUR: Update Role
     public function update(Request $request, User $user)
     {
-        // Validasi input role harus 'admin' atau 'sales'
         $request->validate([
             'role' => 'required|in:admin,sales',
         ]);
 
-        // Cegah admin menurunkan pangkat dirinya sendiri (biar gak terkunci)
+        // CEK ADMIN TERAKHIR: Jika dia admin, dan mau diubah jadi sales
+        if ($user->role === 'admin' && $request->role !== 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount <= 1) {
+                return back()->with('error', 'Gagal! Harus tersisa minimal 1 Admin.');
+            }
+        }
+
+        // Cegah ubah diri sendiri (opsional, tapi bagus ada)
         if ($user->id === auth()->id() && $request->role !== 'admin') {
-            return back()->with('error', 'Anda tidak bisa mengubah role sendiri.');
+             return back()->with('error', 'Anda tidak bisa menurunkan jabatan sendiri.');
         }
 
         $user->update(['role' => $request->role]);
@@ -70,7 +77,15 @@ class UserController extends Controller
             return back()->with('error', 'Anda tidak bisa mengarsipkan akun sendiri!');
         }
 
-        $user->delete(); // Karena pakai SoftDeletes, ini otomatis jadi "Arsip"
+        // CEK ADMIN TERAKHIR SEBELUM HAPUS
+        if ($user->role === 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount <= 1) {
+                return back()->with('error', 'Gagal! Ini adalah satu-satunya Admin. Tidak bisa dihapus.');
+            }
+        }
+
+        $user->delete(); 
 
         return back()->with('message', 'Akun berhasil diarsipkan (Soft Delete).');
     }

@@ -68,7 +68,7 @@ class PasswordResetRequestController extends Controller
     /**
      * ADMIN: Eksekusi Reset Password
      */
-public function reset(Request $request, $id)
+    public function reset(Request $request, $id)
     {
         // 1. Validasi Input Password dari Admin
         $request->validate([
@@ -97,5 +97,12 @@ public function reset(Request $request, $id)
 
         // 4. Kembalikan pesan sukses biasa
         return back()->with('message', "Sukses! Password untuk {$user->name} berhasil diubah.");
+    }
+
+    // menghapus permintaan reset
+    public function destroy($id)
+    {
+        DB::table('password_reset_requests')->delete($id);
+        return back()->with('message', 'Permintaan reset berhasil dihapus/diabaikan.');
     }
 }

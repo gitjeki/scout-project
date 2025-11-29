@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import SidebarLayout from '@/Layouts/SidebarLayout';
-import { Head, useForm, router, Link } from '@inertiajs/react';
-import { FaTrash, FaUserPlus, FaArchive, FaUndo } from 'react-icons/fa';
+// PERBAIKAN 1: Tambahkan 'usePage' di sini
+import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
+// PERBAIKAN 2: Tambahkan ikon alert (FaCheckCircle, FaExclamationCircle)
+import { FaTrash, FaUserPlus, FaArchive, FaUndo, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
-// Import Komponen Form & Modal Bawaan Breeze
 import Modal from '@/Components/Modal';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -12,13 +13,16 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 
 export default function UserIndex({ users, filters = {} }) {
-    // --- 1. SETUP STATE & FILTER ---
+    // --- 1. AMBIL FLASH MESSAGE DARI BACKEND ---
+    const { flash } = usePage().props;
+
+    // --- 2. SETUP STATE & FILTER ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     // Cek apakah kita sedang di tab "Arsip"?
     const isArchivedView = filters.status === 'archived';
 
-    // --- 2. FORM TAMBAH USER ---
+    // --- 3. FORM TAMBAH USER ---
     const { 
         data: dataAdd, 
         setData: setDataAdd, 
@@ -48,24 +52,21 @@ export default function UserIndex({ users, filters = {} }) {
         });
     };
 
-    // --- 3. LOGIKA AKSI (ARSIP, RESTORE, GANTI ROLE) ---
+    // --- 4. LOGIKA AKSI (ARSIP, RESTORE, GANTI ROLE) ---
     const { delete: destroy } = useForm();
 
-    // Fungsi Arsip (Soft Delete)
     const handleArchive = (id, name) => {
         if (confirm(`Apakah Anda yakin ingin mengarsipkan akun '${name}'? \nUser tidak akan bisa login lagi.`)) {
             destroy(route('users.destroy', id));
         }
     };
 
-    // Fungsi Restore (Pulihkan)
     const handleRestore = (id, name) => {
         if (confirm(`Pulihkan akun '${name}'? User akan bisa login kembali.`)) {
             router.put(route('users.restore', id));
         }
     };
 
-    // Fungsi Ganti Role
     const handleRoleChange = (id, name, newRole) => {
         if(confirm(`Ubah role ${name} menjadi ${newRole}?`)) {
             router.put(route('users.update', id), { 
@@ -79,6 +80,21 @@ export default function UserIndex({ users, filters = {} }) {
             <Head title="Kelola User" />
 
             <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                
+                {/* --- PERBAIKAN 3: BAGIAN NOTIFIKASI ERROR / SUKSES --- */}
+                {flash.message && (
+                    <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center gap-2 animate-pulse">
+                        <FaCheckCircle /> 
+                        <span>{flash.message}</span>
+                    </div>
+                )}
+                {flash.error && (
+                    <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center gap-2 animate-pulse">
+                        <FaExclamationCircle /> 
+                        <span className="font-bold">{flash.error}</span>
+                    </div>
+                )}
+                {/* ----------------------------------------------------- */}
                 
                 {/* --- HEADER & TAB NAVIGASI --- */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -180,7 +196,6 @@ export default function UserIndex({ users, filters = {} }) {
                                     <td className="py-3 px-6 text-center">
                                         <div className="flex item-center justify-center gap-2">
                                             {isArchivedView ? (
-                                                // Tombol Restore (Untuk Arsip)
                                                 <button 
                                                     onClick={() => handleRestore(user.id, user.name)}
                                                     className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center hover:bg-green-200 transition shadow-sm"
@@ -189,13 +204,12 @@ export default function UserIndex({ users, filters = {} }) {
                                                     <FaUndo size={14} />
                                                 </button>
                                             ) : (
-                                                // Tombol Arsip (Untuk Aktif)
                                                 <button 
                                                     onClick={() => handleArchive(user.id, user.name)}
                                                     className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition shadow-sm"
                                                     title="Arsipkan Akun"
                                                 >
-                                                    <FaArchive size={14} />
+                                                    <FaTrash size={14} />
                                                 </button>
                                             )}
                                         </div>

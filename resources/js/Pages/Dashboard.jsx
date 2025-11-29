@@ -9,7 +9,7 @@ export default function Dashboard({ stats, latest_users }) {
         <SidebarLayout header="Dashboard Utama">
             <Head title="Dashboard" />
 
-            {/* --- 1. STATISTIK CARDS (Hanya untuk Admin) --- */}
+            {/* --- STATISTIK CARDS (Hanya untuk Admin) --- */}
             {user.role === 'admin' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex items-center">
@@ -44,11 +44,13 @@ export default function Dashboard({ stats, latest_users }) {
                 </div>
             )}
 
-            {/* --- 2. LIST USER TERBARU --- */}
+            {/* --- LIST USER / WELCOME --- */}
             <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">
-                    {user.role === 'admin' ? '5 Anggota Terbaru' : 'Status Akun Anda'}
-                </h3>
+                
+                {/* Judul dihapus/diganti dengan yang lebih relevan */}
+                <div className="mb-4 pb-2 border-b border-gray-100">
+                     <span className="text-gray-500 font-medium text-sm">Aktivitas Anggota Baru</span>
+                </div>
 
                 {user.role === 'admin' ? (
                     <table className="min-w-full text-sm text-left">
@@ -60,10 +62,10 @@ export default function Dashboard({ stats, latest_users }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {latest_users.map((u) => (
+                            {latest_users && latest_users.length > 0 ? latest_users.map((u) => (
                                 <tr key={u.id} className="border-b">
                                     <td className="px-4 py-3 font-medium flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs">
+                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
                                             {u.name.charAt(0)}
                                         </div>
                                         {u.name}
@@ -74,15 +76,19 @@ export default function Dashboard({ stats, latest_users }) {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-gray-500">
-                                        {new Date(u.created_at).toLocaleDateString()}
+                                        {new Date(u.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                                     </td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan="3" className="px-4 py-3 text-center text-gray-500">Belum ada data.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 ) : (
-                    <p className="text-gray-600">
-                        Selamat bekerja, <b>{user.name}</b>! Silakan akses menu di sebelah kiri untuk melihat prospek nasabah.
+                    <p className="text-gray-600 text-center py-4">
+                        Halo <b>{user.name}</b>, selamat bekerja! Cek menu prospek untuk memulai.
                     </p>
                 )}
             </div>
