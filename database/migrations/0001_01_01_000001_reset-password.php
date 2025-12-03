@@ -11,14 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-    Schema::create('password_reset_requests', function (Blueprint $table) {
-        $table->id();
-        // Menyimpan ID user yang minta reset
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        // Status: pending (belum direset), completed (sudah direset)
-        $table->string('status')->default('pending'); 
-        $table->timestamps();
-    });
+        if (!Schema::hasTable('password_reset_requests')) {
+            
+            Schema::create('password_reset_requests', function (Blueprint $table) {
+                $table->id();
+                 // Menyimpan ID user yang minta reset
+                $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                // Status: pending (belum direset), completed (sudah direset)
+                $table->string('status')->default('pending'); 
+                $table->timestamps();
+            });
+        }
     }
 
     /**

@@ -129,10 +129,13 @@ class DashboardController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Tambahkan validasi assigned_to (ID User Bankir)
         $validated = $request->validate([
             'age'            => 'numeric|nullable',
             'job'            => 'string|nullable',
             'education'      => 'string|nullable',
+            'assigned_to'    => 'numeric|nullable|exists:users,id', // Validasi baru
+            // ... (validasi lainnya biarkan sama)
             'month'          => 'string|nullable',
             'duration'       => 'numeric|nullable',
             'campaign'       => 'numeric|nullable',
@@ -147,20 +150,45 @@ class DashboardController extends Controller
         try {
             $prospect = Prospect::findOrFail($id);
             
+            // Cek apakah ada perubahan Assignment (Penunjukan Bankir)
+            $oldAssignee = $prospect->assigned_to; // Asumsi ada kolom assigned_to di tabel prospects
+            $newAssignee = $request->assigned_to ?? $oldAssignee;
+
             // 1. Update Data Prospek
+            // Kita pisahkan assigned_to dari validated array jika kolom di DB namanya beda
+            // Tapi kalau di DB nama kolomnya 'assigned_to', baris ini aman:
             $prospect->update($validated);
 
-            // 2. Hapus hasil prediksi lama karena data berubah (agar diprediksi ulang nanti)
-            $prospect->scores()->delete();
+            // 2. LOGIKA NOTIFIKASI
+            // Jika assignee berubah DAN assignee-nya bukan null
+            if ($newAssignee && ($newAssignee != $oldAssignee)) {
+                // OPSI A: Simpan ke tabel notifikasi (Jika ada tabel notifications)
+                \App\Models\Notification::create([
+                     'user_id' => $newAssignee,
+                     'title'   => 'Prospek Baru',
+                     'message' => 'Anda mendapatkan prospek baru untuk dihubungi.',
+                     'is_read' => false
+                 ]);
+
+                // OPSI B (Sementara): Kita update status jadi NEW agar muncul di list sales
+                // Ini memastikan sales "melihat" data baru ini.
+                // (Tidak perlu kode tambahan jika filter sales berdasarkan assigned_to)
+            }
+
+            // 3. Reset Score jika data nasabah berubah
+            // (Kita cek apakah data vital berubah, kalau cuma assign sales, jangan hapus score)
+            $dataVital = ['age', 'duration', 'campaign', 'poutcome'];
+            if ($prospect->wasChanged($dataVital)) {
+                $prospect->scores()->delete();
+            }
 
             DB::commit();
-            return back()->with('success', 'Data diperbarui. Score di-reset.');
+            return back()->with('success', 'Data diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal update: ' . $e->getMessage());
         }
     }
-
     /**
      * [BARU] Fitur Hapus Satuan (Single Delete)
      */

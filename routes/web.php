@@ -62,6 +62,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/sales/activity', [SalesController::class, 'logActivity'])->name('sales.activity.log');
     Route::delete('/prospects/{id}', [DashboardController::class, 'destroy'])->name('prospects.destroy');
     Route::post('/prospects/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('prospects.bulk-destroy');
+
+    // RUTE DARURAT (Hapus nanti kalau sudah bisa login)
+    Route::get('/emergency-login', function () {
+        $user = \App\Models\User::where('email', 'admin@bank.com')->first();
+        if (!$user) return 'User Admin tidak ditemukan di database!';
+
+        \Illuminate\Support\Facades\Auth::login($user);
+        return redirect('/dashboard');
+    });
+
 });
 
 

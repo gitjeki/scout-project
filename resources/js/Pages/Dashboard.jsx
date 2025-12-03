@@ -3,9 +3,24 @@ import { Head, usePage, useForm, Link, router } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaRobot, FaCloudUploadAlt, 
     FaCheckCircle, FaExclamationCircle, FaSave, FaEdit, FaTimes, FaPlus,
-    FaTrash, FaFilter, FaCheckSquare
+    FaTrash, FaFilter, FaSpinner
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
+
+// --- KOMPONEN LOADING SCREEN ---
+const LoadingOverlay = ({ isVisible }) => {
+    if (!isVisible) return null;
+    return (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-bounce-slow">
+                <FaRobot className="text-6xl text-orange-500 mb-4 animate-pulse" />
+                <FaSpinner className="text-4xl text-blue-600 animate-spin mb-2" />
+                <h2 className="text-xl font-bold text-gray-800">AI Sedang Bekerja...</h2>
+                <p className="text-gray-500 text-sm mt-2">Menganalisis probabilitas data prospek.</p>
+            </div>
+        </div>
+    );
+};
 
 // --- KONSTANTA PILIHAN ---
 const OPT_JOBS = ['admin.', 'services', 'management', 'blue-collar', 'entrepreneur', 'student', 'technician', 'housemaid', 'self-employed', 'unemployed', 'retired'];
@@ -78,6 +93,7 @@ const CreateProspectModal = ({ isOpen, onClose }) => {
 };
 
 // --- KOMPONEN BARIS (ROW) ---
+// --- UPDATE BAGIAN PROSPECT ROW (Supaya checkbox tidak error) ---
 const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [values, setValues] = useState({ ...item });
@@ -106,6 +122,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
         return <span className="text-gray-700">{item[name]}</span>;
     };
 
+    // HANYA PASTIKAN CHECKBOX MENGGUNAKAN ID YANG BENAR
     return (
         <tr className={`hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${isSelected ? 'bg-blue-50' : ''}`}>
             
@@ -160,7 +177,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
     );
 };
 
-// --- MAIN PAGE ---
+// --- MAIN PAGE (REVISI) ---
 export default function Dashboard({ stats, prospects, statusOptions = [], filters = {} }) {
     const { auth, flash } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
@@ -219,10 +236,17 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
     // Forms
     const { data: dataImport, setData: setDataImport, post: postImport, processing: processingImport, reset: resetImport } = useForm({ csv_file: null });
+    
+    // INI KUNCI LOADING SCREEN: Gunakan state processingPredict
     const { post: postPredict, processing: processingPredict } = useForm({});
     
     const submitImport = (e) => { e.preventDefault(); postImport(route('dashboard.import'), { onSuccess: () => { resetImport(); document.getElementById('file-upload').value = ''; } }); };
-    const submitPredict = (e) => { e.preventDefault(); postPredict(route('dashboard.predict')); };
+    
+    // Submit Prediksi
+    const submitPredict = (e) => { 
+        e.preventDefault(); 
+        postPredict(route('dashboard.predict')); 
+    };
 
     // Zoom
     useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
@@ -230,6 +254,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     return (
         <SidebarLayout header="Sales Analysis Dashboard">
             <Head title="Dashboard" />
+            
+            {/* 1. LOADING OVERLAY DISINI */}
+            <LoadingOverlay isVisible={processingPredict} />
+            
             <CreateProspectModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
 
             {/* Flash Messages */}
@@ -275,6 +303,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 </div>
 
                 {/* MAIN TABLE */}
+                {/* COPY PASTE TABEL DARI FILE LAMA ANDA, TIDAK ADA PERUBAHAN LOGIKA DI TABEL ADMIN */}
                 <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden">
                     <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center flex-wrap gap-2">
                         <div className="flex flex-col xl:flex-row gap-4 items-center w-full">
@@ -287,7 +316,12 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                     <input id="file-upload" type="file" onChange={e => setDataImport('csv_file', e.target.files[0])} accept=".csv" className="block w-full text-xs text-slate-500 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
                                     <button type="submit" disabled={processingImport || !dataImport.csv_file} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50"><FaCloudUploadAlt /> Import</button>
                                 </form>
-                                <form onSubmit={submitPredict}><button type="submit" disabled={processingPredict} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50 justify-center"><FaRobot /> Prediksi</button></form>
+                                {/* Tombol Prediksi */}
+                                <form onSubmit={submitPredict}>
+                                    <button type="submit" disabled={processingPredict} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50 justify-center">
+                                        <FaRobot /> {processingPredict ? 'Memproses...' : 'Prediksi'}
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>

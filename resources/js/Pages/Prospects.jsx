@@ -3,7 +3,8 @@ import SidebarLayout from '@/Layouts/SidebarLayout';
 import { Head, usePage, router, Link } from '@inertiajs/react';
 import { 
     FaSave, FaEdit, FaTimes, FaCheckCircle, FaExclamationCircle, 
-    FaUser, FaPhone, FaStopCircle, FaPlayCircle 
+    FaUser, FaPhone, FaStopCircle, FaPlayCircle,
+    FaSort, FaSortUp, FaSortDown, FaBell // TAMBAHAN: Icon untuk sorting & notifikasi
 } from 'react-icons/fa';
 
 // --- KOMPONEN MODAL TRACKING CALL ---
@@ -219,16 +220,53 @@ const SalesRow = ({ item, statusOptions, onCallClick }) => {
 };
 
 // --- MAIN PAGE COMPONENT ---
-export default function Prospects({ prospects, statusOptions }) {
+// --- 1. LOGIKA SORTING (SOLUSI BUG MUTER-MUTER) ---
+// --- 2. LOGIKA NOTIFIKASI MANUAL (SIMULASI) ---
+export default function Prospects({ prospects, statusOptions, filters = {} }) {
     const { flash } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // --- FITUR BARU: SORTING STATE ---
+    // Ambil default dari props filters (dikirim dari Controller)
+    const [sortField, setSortField] = useState(filters.sort_field || 'created_at');
+    const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
 
     // Zoom level fix
     useEffect(() => {
         document.body.style.zoom = "67%";
         return () => { document.body.style.zoom = "100%"; };
     }, []);
+
+    // --- FITUR BARU: HANDLE SORTING ---
+    const handleSort = (field) => {
+        const newDirection = (field === sortField && sortDirection === 'asc') ? 'desc' : 'asc';
+        
+        setSortField(field);
+        setSortDirection(newDirection);
+
+        // Panggil Router GET agar server mengurutkan data
+        router.get(route('sales.prospects.index'), {
+            sort_field: field,
+            sort_direction: newDirection
+        }, { 
+            preserveState: true, // Jangan refresh halaman total
+            preserveScroll: true // Jangan scroll ke atas
+        });
+    };
+
+    // --- FITUR BARU: RENDER SORT ICON ---
+    // Helper icon sorting
+    const renderSortIcon = (field) => {
+        if (sortField !== field) return <FaSort className="text-gray-300 ml-1 inline" size={10} />;
+        return sortDirection === 'asc' 
+            ? <FaSortUp className="text-blue-600 ml-1 inline" size={10} /> 
+            : <FaSortDown className="text-blue-600 ml-1 inline" size={10} />;
+    };
+
+    // --- FITUR BARU: NOTIFIKASI NEW LEADS ---
+    // Hitung berapa data yang statusnya 'NEW' (belum disentuh)
+    const newLeadsCount = prospects.data.filter(p => p.status_code === 'NEW').length;
 
     const handleCallClick = (prospect) => {
         setSelectedProspect(prospect);
@@ -259,6 +297,27 @@ export default function Prospects({ prospects, statusOptions }) {
                 </div>
             )}
 
+            {/* --- FITUR BARU: NOTIFIKASI AREA --- */}
+            {newLeadsCount > 0 && (
+                <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded shadow-sm flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+                            <FaBell className="animate-pulse" />
+                        </div>
+                        <div>
+                            <p className="font-bold text-blue-800">Anda memiliki {newLeadsCount} Prospek Baru!</p>
+                            <p className="text-xs text-blue-600">Admin telah menugaskan data baru untuk Anda hubungi hari ini.</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => handleSort('created_at')} 
+                        className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+                    >
+                        Lihat Data Baru
+                    </button>
+                </div>
+            )}
+
             <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden mt-4">
                 <div className="p-4 border-b border-gray-200 bg-orange-50 flex justify-between items-center">
                     <div>
@@ -277,10 +336,27 @@ export default function Prospects({ prospects, statusOptions }) {
                             <tr>
                                 <th className="px-4 py-3 text-center sticky left-0 bg-gray-100 z-10 border-r border-gray-200 w-24">Call</th>
                                 <th className="px-4 py-3">Prospect_ID</th>
-                                <th className="px-4 py-3">Status</th>
+                                
+                                {/* --- FITUR BARU: SORTABLE COLUMNS --- */}
+                                <th 
+                                    className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition select-none"
+                                    onClick={() => handleSort('status_code')}
+                                    title="Klik untuk mengurutkan"
+                                >
+                                    Status {renderSortIcon('status_code')}
+                                </th>
+                                
                                 <th className="px-4 py-3 max-w-xs">Deskripsi</th>
                                 <th className="px-4 py-3">Prio</th>
-                                <th className="px-4 py-3">Score</th>
+                                
+                                <th 
+                                    className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition select-none"
+                                    onClick={() => handleSort('score')}
+                                    title="Klik untuk mengurutkan"
+                                >
+                                    Score {renderSortIcon('score')}
+                                </th>
+                                
                                 <th className="px-4 py-3">Age</th>
                                 <th className="px-4 py-3">Job</th>
                                 <th className="px-4 py-3">Education</th>

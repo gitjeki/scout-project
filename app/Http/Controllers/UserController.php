@@ -39,7 +39,7 @@ class UserController extends Controller
             'username' => $request->username,
             'email' => $request->email,
             'role' => 'sales', // Default sales
-            'password' => Hash::make($request->password),
+            'password_hash' => Hash::make($request->password),
         ]);
 
         return redirect()->back()->with('message', 'Akun berhasil dibuat.');
