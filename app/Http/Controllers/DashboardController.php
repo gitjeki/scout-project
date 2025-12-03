@@ -375,7 +375,9 @@ class DashboardController extends Controller
             abort(403, 'Akses Ditolak.');
         }
 
+        // 1. Set Konfigurasi Unlimited (Penting untuk data ribuan)
         ini_set('max_execution_time', 0); 
+        ini_set('memory_limit', '-1');    
         set_time_limit(0); 
 
         $featureColumns = [
@@ -386,13 +388,16 @@ class DashboardController extends Controller
         $totalProcessed = 0;
         $totalFailed    = 0;
 
+        // Ambil prospek yang belum punya nilai score saja
         $query = Prospect::whereDoesntHave('scores');
 
+        // 2. PERBAIKAN UTAMA: Chunk Size Diubah ke 100 (Sebelumnya 2000 terlalu berat)
         $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed, $featureColumns) {
             
             $payload = [];
 
             foreach ($prospects as $prospect) {
+                // Skip jika ada kolom wajib yang kosong/null
                 foreach ($featureColumns as $col) {
                     if (is_null($prospect->{$col})) continue 2; 
                 }
@@ -413,10 +418,12 @@ class DashboardController extends Controller
                 ];
             }
 
+            // Jika payload kosong, lanjut ke chunk berikutnya
             if (empty($payload)) return;
 
             try {
-                $response = Http::timeout(300)->post('http://127.0.0.1:8001/predict_batch', [
+                // 3. Timeout Dinaikkan ke 600 detik (10 Menit) per batch
+                $response = Http::timeout(600)->post('http://127.0.0.1:8001/predict_batch', [
                     'data' => $payload
                 ]);
 
@@ -425,39 +432,47 @@ class DashboardController extends Controller
                     
                     foreach ($results as $res) {
                         try {
-                            $pId  = $res['id'];
                             $prob = (float) $res['probability'];
                             
-                            if ($prob >= 0.8) $priority = 1;
-                            elseif ($prob >= 0.5) $priority = 2;
-                            else $priority = 3;
+                            // Logika Prioritas
+                            if ($prob >= 0.8) $priority = 1;      // High
+                            elseif ($prob >= 0.5) $priority = 2;  // Medium
+                            else $priority = 3;                   // Low
 
-                            PredictionScore::create([
-                                'prospect_id'       => $pId,
-                                'model_version'     => 'decision_tree_v1',
-                                'score_value'       => $prob,
-                                'priority'          => $priority,
-                                'scored_by_user_id' => auth()->id() ?? null,
-                            ]);
+                            // Gunakan updateOrCreate agar aman jika dijalankan ulang
+                            PredictionScore::updateOrCreate(
+                                ['prospect_id' => $res['id']], 
+                                [
+                                    'model_version'     => 'decision_tree_v1',
+                                    'score_value'       => $prob,
+                                    'priority'          => $priority,
+                                    'scored_by_user_id' => auth()->id() ?? null,
+                                    'updated_at'        => now()
+                                ]
+                            );
 
                             $totalProcessed++;
                         } catch (\Exception $e) {
-                            \Log::error("Gagal simpan score ID {$res['id']}: " . $e->getMessage());
+                            // Error simpan database (jarang terjadi)
+                            \Log::error("Gagal simpan ID {$res['id']}: " . $e->getMessage());
                         }
                     }
 
                 } else {
-                    \Log::error("Python API Error: " . $response->body());
+                    // Python Error (Misal data format salah)
+                    \Log::error("Python API Error Batch: " . $response->body());
                     $totalFailed += count($payload);
                 }
 
             } catch (\Exception $e) {
-                \Log::error("Batch Prediction Exception: " . $e->getMessage());
+                // Koneksi Gagal (Python mati / Timeout)
+                \Log::error("Connection Exception: " . $e->getMessage());
                 $totalFailed += count($payload);
             }
         });
 
+        $msgType = ($totalProcessed > 0) ? 'success' : 'error';
         return redirect()->route('dashboard')
-            ->with('success', "Proses selesai. {$totalProcessed} data berhasil diprediksi.");
+            ->with($msgType, "Proses selesai. Berhasil: {$totalProcessed}, Gagal: {$totalFailed}.");
     }
 }

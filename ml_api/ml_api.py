@@ -1,17 +1,37 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
+import sys
+import os
+import category_encoders # Pastikan library ini terdeteksi
 
 app = Flask(__name__)
 
-# === LOAD MODEL ===
-try:
-    model = joblib.load("decision_tree_model.pkl")
-    feature_encoder = joblib.load("target_encoder.pkl")
-    print("Model loaded successfully.")
-except Exception as e:
-    print(f"Error loading model: {e}")
+# --- CONFIG ---
+MODEL_FILE = "decision_tree_model.pkl"
+ENCODER_FILE = "target_encoder.pkl"
 
+# --- 1. LOAD MODEL (CRITICAL SECTION) ---
+print("--- STARTING ML API ---")
+print(f"Checking files in: {os.getcwd()}")
+
+if not os.path.exists(MODEL_FILE) or not os.path.exists(ENCODER_FILE):
+    print(f"ERROR: File {MODEL_FILE} atau {ENCODER_FILE} TIDAK DITEMUKAN!")
+    sys.exit(1) # Matikan program jika file hilang
+
+try:
+    print("Loading model & encoder...")
+    model = joblib.load(MODEL_FILE)
+    feature_encoder = joblib.load(ENCODER_FILE)
+    print(">>> SUCCESS: Model & Encoder loaded perfectly!")
+except Exception as e:
+    print("!!! FATAL ERROR SAAT LOAD !!!")
+    print(f"Penyebab: {e}")
+    print("Solusi: Jalankan 'pip install category_encoders' atau cek file .pkl")
+    sys.exit(1) # Matikan program jika load gagal
+
+# --- 2. DEFINISI KOLOM (GLOBAL) ---
+# Harus sama persis dengan urutan saat training
 FEATURE_COLUMNS = [
     "age", "job", "education", "month", "duration", "campaign",
     "poutcome", "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed",
@@ -20,62 +40,61 @@ FEATURE_COLUMNS = [
 @app.post("/predict_batch")
 def predict_batch():
     try:
+        # Cek apakah encoder benar-benar ada di memori
+        if 'feature_encoder' not in globals():
+            raise Exception("Critical: feature_encoder hilang dari memori!")
+
         content = request.get_json()
         if not content or 'data' not in content:
-            return jsonify({"error": "Invalid payload format. Key 'data' is required."}), 400
+            return jsonify({"error": "No data provided"}), 400
 
-        rows = content['data'] # Ini adalah list of dictionaries
+        rows = content['data']
         if not rows:
             return jsonify([])
 
-        # 1. Buat DataFrame dari input list (Batch Processing)
+        # Convert ke DataFrame
         df = pd.DataFrame(rows)
-        
-        # Simpan ID untuk dikembalikan nanti, tapi pisahkan dari fitur prediksi
-        if 'id' not in df.columns:
-             return jsonify({"error": "ID field is required for batch processing"}), 400
-             
         ids = df['id'].tolist()
         
-        # Ambil hanya kolom fitur yang sesuai urutan training
-        # Pastikan kolom ada, jika tidak isi default/error (disini kita assume Laravel kirim lengkap)
-        X_raw = df[FEATURE_COLUMNS]
+        # Seleksi Kolom
+        try:
+            X_raw = df[FEATURE_COLUMNS]
+        except KeyError as e:
+            return jsonify({"error": f"Missing column: {e}"}), 400
 
-        # 2. Encode seluruh batch sekaligus (Jauh lebih cepat)
+        # Transformasi
         X_encoded = feature_encoder.transform(X_raw)
 
-        # 3. Prediksi seluruh batch
+        # Prediksi
         y_probs = model.predict_proba(X_encoded)
-        y_preds = model.predict(X_encoded)
-
-        # Cari index kelas "yes" atau "1"
-        classes = list(getattr(model, "classes_", []))
-        idx_positive = 1 # default biasanya index 1
-        if "yes" in classes:
-            idx_positive = classes.index("yes")
-        elif 1 in classes:
-            idx_positive = classes.index(1)
+        
+        # Ambil Index Kelas Positif ('yes' atau 1)
+        idx_positive = 1
+        if hasattr(model, "classes_"):
+            classes = list(model.classes_)
+            if "yes" in classes:
+                idx_positive = classes.index("yes")
+            elif 1 in classes:
+                idx_positive = classes.index(1)
 
         results = []
-        
-        # 4. Gabungkan hasil dengan ID masing-masing
-        # zip() menggabungkan ID, Prediksi, dan Probabilitas dalam satu loop
-        for _id, pred, proba in zip(ids, y_preds, y_probs):
-            # Ambil probabilitas kelas positif
-            positive_prob = float(proba[idx_positive]) if len(proba) > idx_positive else float(max(proba))
+        for _id, proba in zip(ids, y_probs):
+            # Ambil probabilitas sesuai index kelas 'yes'
+            p_score = float(proba[idx_positive]) if len(proba) > idx_positive else float(proba[0])
             
             results.append({
                 "id": int(_id),
-                "label": str(pred),
-                "probability": positive_prob
+                "probability": p_score
             })
 
+        print(f"Processed {len(results)} rows successfully.")
         return jsonify(results)
 
     except Exception as e:
-        # Print error di console biar kelihatan saat debug
-        print(f"Error in batch prediction: {e}")
+        print(f"RUNTIME ERROR: {e}") # Muncul di terminal
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8001, debug=True)
+    # Matikan reloader agar tidak loading 2x (membingungkan log)
+    print("Server running on port 8001...")
+    app.run(host="127.0.0.1", port=8001, debug=False)
