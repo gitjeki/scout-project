@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContactActivity;
 use App\Models\Prospect;
 use App\Models\ProspectStatus;
 use App\Models\PredictionScore;
@@ -18,51 +19,77 @@ class DashboardController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Query Dasar
+        $user = $request->user();
+
+        // --- 1. STATISTIK (Dinamis Berdasarkan Role) ---
+        $stats = [];
+        $personalStats = null;
+
+        if ($user->role === 'admin') {
+            // LOGIKA ADMIN (Global Stats)
+            $stats = [
+                'total_prospects' => Prospect::count(),
+                'processed'       => Prospect::has('latestScore')->count(),
+                'high_priority'   => Prospect::whereHas('latestScore', function ($q) {
+                                        $q->where('priority', 1);
+                                    })->count(),
+            ];
+        } else {
+            // LOGIKA SALES (Personal Stats)
+            $today = now()->format('Y-m-d');
+            
+            // Hitung Hot Leads (New & High Priority)
+            $hotLeads = Prospect::whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
+                ->whereHas('latestScore', fn($q) => $q->where('priority', 1))
+                ->count();
+
+            // Hitung Panggilan Hari Ini (Pakai contact_at agar tidak error)
+            $callsToday = ContactActivity::where('telemarketer_id', $user->id)
+                ->whereDate('contact_at', $today)
+                ->count();
+
+            // Hitung Durasi Bicara Hari Ini
+            $durationSec = ContactActivity::where('telemarketer_id', $user->id)
+                ->whereDate('contact_at', $today)
+                ->sum('call_duration_sec');
+
+            $personalStats = [
+                'hot_leads'    => $hotLeads,
+                'calls_today'  => $callsToday,
+                'duration_min' => round($durationSec / 60, 1),
+            ];
+        }
+
+        // --- 2. Query Data Tabel (Bawah) ---
         $query = Prospect::with(['status', 'latestScore']);
 
-        // --- FILTER LOGIC ---
-        // Jika ada parameter 'status' dari dropdown frontend, filter query
+        // Filter Dropdown
         if ($request->has('status') && $request->status != '') {
             $query->whereHas('status', function($q) use ($request) {
                 $q->where('status_code', $request->status);
             });
         }
 
-        // 2. Statistik (Global)
-        // Hitung total tanpa terpengaruh filter agar user tetap tahu total data di DB
-        $stats = [
-            'total_prospects' => Prospect::count(),
-            'processed'       => Prospect::has('latestScore')->count(),
-            'high_priority'   => Prospect::whereHas('latestScore', function ($q) {
-                                    $q->where('priority', 1);
-                                })->count(),
-        ];
-
-        // 3. Ambil Opsi Status untuk Dropdown Filter
+        // --- 3. Opsi Filter ---
         $statusOptions = ProspectStatus::select('status_code')
             ->distinct()
             ->orderBy('status_code')
             ->pluck('status_code');
 
-        // 4. Pagination & Formatting Data
+        // --- 4. Pagination ---
         $prospects = $query->orderByDesc('id')
             ->paginate(50)
-            ->withQueryString() // Penting: agar filter status tidak hilang saat pindah halaman
+            ->withQueryString()
             ->through(function ($item) {
                 return [
                     'id'             => $item->id,
                     'status'         => $item->status ? $item->status->status_code : 'UNKNOWN',
-                    
-                    // Score & Priority
                     'score'          => $item->latestScore ? $item->latestScore->score_value : null,
                     'priority'       => $item->latestScore ? $item->latestScore->priority : null,
-                    
                     'scored_at'      => $item->latestScore 
                                         ? Carbon::parse($item->latestScore->created_at)->format('d M Y H:i') 
                                         : null,
-
-                    // Data editable
+                    // Data Lengkap
                     'age'            => $item->age,
                     'job'            => $item->job,
                     'education'      => $item->education,
@@ -78,10 +105,11 @@ class DashboardController extends Controller
             });
 
         return Inertia::render('Dashboard', [
-            'stats'         => $stats,
+            'stats'         => $stats,          // Terisi jika Admin
+            'personalStats' => $personalStats,  // Terisi jika Sales (BARU)
             'prospects'     => $prospects,
-            'statusOptions' => $statusOptions,           // Kirim opsi status ke frontend
-            'filters'       => $request->only(['status']), // Kirim state filter saat ini
+            'statusOptions' => $statusOptions,
+            'filters'       => $request->only(['status']),
         ]);
     }
 

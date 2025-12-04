@@ -5,7 +5,7 @@ import {
     FaSave, FaEdit, FaTimes, FaCheckCircle, FaExclamationCircle, 
     FaUser, FaPhone, FaStopCircle, FaPlayCircle,
     FaSort, FaSortUp, FaSortDown, FaBell,
-    FaFilter, FaSearch, FaUndo, FaTag // Icon Tambahan
+    FaFilter, FaSearch, FaUndo, FaTag, FaFire, FaPhoneVolume, FaStopwatch
 } from 'react-icons/fa';
 
 // --- KOMPONEN MODAL TRACKING CALL (SAMA SEPERTI SEBELUMNYA) ---
@@ -127,7 +127,7 @@ const SalesRow = ({ item, statusOptions, onCallClick }) => {
 };
 
 // --- MAIN PAGE COMPONENT ---
-export default function Prospects({ prospects, statusOptions, jobOptions = [], educationOptions = [], filters = {} }) {
+export default function Prospects({ prospects, statusOptions, jobOptions = [], educationOptions = [], filters = {}, personalStats }) {
     const { flash } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -224,6 +224,55 @@ export default function Prospects({ prospects, statusOptions, jobOptions = [], e
     return (
         <SidebarLayout header="Sales Workspace">
             <Head title="Daftar Prospek" />
+            
+            {/* === [MULAI SISIPAN KODE KARTU DISINI] === */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                
+                {/* CARD 1: PELUANG EMAS (HOT LEADS) */}
+                <div className="bg-gradient-to-r from-orange-500 to-red-600 p-4 rounded-xl shadow-md text-white flex items-center justify-between transform hover:scale-105 transition duration-300">
+                    <div>
+                        <p className="text-orange-100 text-xs font-bold uppercase tracking-wider mb-1">Peluang Emas</p>
+                        <div className="flex items-baseline gap-1">
+                            <h3 className="text-3xl font-bold">{personalStats?.hot_leads || 0}</h3>
+                            <span className="text-xs text-orange-200">Prospek</span>
+                        </div>
+                        <p className="text-[10px] text-white/80 mt-1">Status Baru & High Priority</p>
+                    </div>
+                    <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                        <FaFire size={24} className="animate-pulse text-yellow-300" />
+                    </div>
+                </div>
+
+                {/* CARD 2: TOTAL PANGGILAN SAYA (HARI INI) */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Panggilan Hari Ini</p>
+                        <h3 className="text-3xl font-bold text-gray-800">{personalStats?.calls_today || 0}</h3>
+                        <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
+                            <FaCheckCircle size={10}/> Keep pushing!
+                        </p>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-full text-blue-600">
+                        <FaPhoneVolume size={24} />
+                    </div>
+                </div>
+
+                {/* CARD 3: DURASI BICARA SAYA */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Durasi Bicara</p>
+                        <div className="flex items-baseline gap-1">
+                            <h3 className="text-3xl font-bold text-gray-800">{personalStats?.duration_min || 0}</h3>
+                            <span className="text-sm text-gray-500 font-medium">menit</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">Akumulasi kerja hari ini</p>
+                    </div>
+                    <div className="bg-purple-50 p-3 rounded-full text-purple-600">
+                        <FaStopwatch size={24} />
+                    </div>
+                </div>
+            </div>
+            {/* === [AKHIR SISIPAN KODE KARTU] === */}
             
             <CallTrackingModal 
                 isOpen={isModalOpen} 

@@ -43,6 +43,32 @@ class SalesController extends Controller
             abort(403, 'Akses khusus Sales.');
         }
 
+        // === [SISIPKAN KODE INI DI SINI] ===
+        // Hitung Statistik Pribadi untuk Dashboard (3 Cards)
+        $userId = $request->user()->id;
+        $today  = now()->format('Y-m-d');
+
+        // Card 1: Target (High Priority & Belum Disentuh)
+        $hotLeadsCount = Prospect::whereHas('status', function($q) {
+                $q->where('status_code', 'NEW');
+            })
+            ->whereHas('latestScore', function($q) {
+                $q->where('priority', 1); // High Priority
+            })
+            ->count();
+
+        // Card 2: Produktivitas (Jumlah Telepon Hari Ini)
+        $myCallsToday = ContactActivity::where('telemarketer_id', $userId)
+            ->whereDate('contact_at', $today)
+            ->count();
+
+        // Card 3: Durasi Bicara (Total Menit Hari Ini)
+        $myDurationSec = ContactActivity::where('telemarketer_id', $userId)
+            ->whereDate('contact_at', $today)
+            ->sum('call_duration_sec');
+        $myDurationMin = round($myDurationSec / 60, 1);
+        // === [AKHIR KODE SISIPAN] ===
+
         // 2. Ambil Parameter Sorting & Filtering
         $sortField = $request->input('sort_field', 'created_at'); 
         $sortDirection = $request->input('sort_direction', 'desc');
@@ -181,6 +207,14 @@ class SalesController extends Controller
                 'filter_education'  => $filterEducation,
                 'search'            => $searchQuery,
             ],
+
+            // === [TAMBAHKAN BARIS INI] ===
+            'personalStats'     => [
+                'hot_leads'    => $hotLeadsCount,
+                'calls_today'  => $myCallsToday,
+                'duration_min' => $myDurationMin,
+            ],
+            // =============================
         ]);
     }
 
@@ -442,8 +476,24 @@ class SalesController extends Controller
 
         return response()->json($stats);
     }
+/**
+     * FUNGSI TAMBAHAN (Paste di bagian paling bawah class, sebelum '}')
+     * Digunakan untuk menyediakan opsi status ke dropdown filter
+     */
     private function getStatuses()
     {
-        return self::PROSPECT_STATUSES;
+        // Jika Anda menggunakan konstanta di atas class:
+        // return self::PROSPECT_STATUSES; 
+        
+        // ATAU definisikan manual disini agar aman:
+        return [
+            ['code' => 'NEW',            'type' => 'open',            'desc' => 'Data baru'],
+            ['code' => 'CONTACTED',      'type' => 'open',            'desc' => 'Sudah ditelepon'],
+            ['code' => 'INTERESTED',     'type' => 'open',            'desc' => 'Tertarik'],
+            ['code' => 'ACCEPTED',       'type' => 'closed_accepted', 'desc' => 'Setuju'],
+            ['code' => 'REFUSED',        'type' => 'closed_refused',  'desc' => 'Menolak'],
+            ['code' => 'NO_ANSWER',      'type' => 'closed_refused',  'desc' => 'Tidak Diangkat'],
+            ['code' => 'INVALID_NUMBER', 'type' => 'closed_refused',  'desc' => 'Nomor Salah'],
+        ];
     }
 }

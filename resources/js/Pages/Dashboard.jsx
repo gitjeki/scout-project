@@ -3,7 +3,7 @@ import { Head, usePage, useForm, Link, router } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaRobot, FaCloudUploadAlt, 
     FaCheckCircle, FaExclamationCircle, FaSave, FaEdit, FaTimes, FaPlus,
-    FaTrash, FaFilter, FaCheckSquare, FaSpinner // <--- Icon Spinner ditambahkan
+    FaTrash, FaFilter, FaCheckSquare, FaSpinner, FaFire, FaPhoneVolume, FaStopwatch
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
@@ -175,7 +175,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
 };
 
 // --- MAIN PAGE (REVISI) ---
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {} }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats }) {
     const { auth, flash } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -269,10 +269,70 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             )}
 
             {/* Stats Cards */}
+            {/* --- STATS CARDS SECTION (Dynamic based on Role) --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-blue-100 rounded-full text-blue-600 mr-4"><FaUsers size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">Total Prospek</p><h3 className="text-2xl font-bold text-gray-800">{stats?.total_prospects}</h3></div></div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-green-100 rounded-full text-green-600 mr-4"><FaCheckCircle size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">Processed</p><h3 className="text-2xl font-bold text-gray-800">{stats?.processed}</h3></div></div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-orange-100 rounded-full text-orange-600 mr-4"><FaChartLine size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">High Priority</p><h3 className="text-2xl font-bold text-gray-800">{stats?.high_priority}</h3></div></div>
+                
+                {/* JIKA SALES: Tampilkan Personal Stats */}
+                {auth.user.role === 'sales' && personalStats ? (
+                    <>
+                        <div className="bg-gradient-to-r from-orange-500 to-red-600 p-6 rounded-xl shadow-md text-white flex items-center justify-between">
+                            <div>
+                                <p className="text-orange-100 text-xs font-bold uppercase tracking-wider mb-1">Target Prioritas</p>
+                                <div className="flex items-baseline gap-1">
+                                    <h3 className="text-3xl font-bold">{personalStats.hot_leads}</h3>
+                                    <span className="text-xs text-orange-200">Prospek</span>
+                                </div>
+                                <p className="text-[10px] text-white/80 mt-1">Status Baru & High Score</p>
+                            </div>
+                            <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                                <FaFire size={24} className="animate-pulse text-yellow-300" />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Panggilan Hari Ini</p>
+                                <h3 className="text-3xl font-bold text-gray-800">{personalStats.calls_today}</h3>
+                                <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
+                                    <FaCheckCircle size={10}/> Keep going!
+                                </p>
+                            </div>
+                            <div className="bg-blue-50 p-3 rounded-full text-blue-600">
+                                <FaPhoneVolume size={24} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Durasi Bicara</p>
+                                <div className="flex items-baseline gap-1">
+                                    <h3 className="text-3xl font-bold text-gray-800">{personalStats.duration_min}</h3>
+                                    <span className="text-sm text-gray-500 font-medium">menit</span>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-1">Akumulasi hari ini</p>
+                            </div>
+                            <div className="bg-purple-50 p-3 rounded-full text-purple-600">
+                                <FaStopwatch size={24} />
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    /* JIKA ADMIN: Tampilkan Global Stats (Kode Lama) */
+                    <>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div className="p-3 bg-blue-100 rounded-full text-blue-600 mr-4"><FaUsers size={20} /></div>
+                            <div><p className="text-gray-500 text-xs uppercase font-bold">Total Prospek</p><h3 className="text-2xl font-bold text-gray-800">{stats?.total_prospects || 0}</h3></div>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div className="p-3 bg-green-100 rounded-full text-green-600 mr-4"><FaCheckCircle size={20} /></div>
+                            <div><p className="text-gray-500 text-xs uppercase font-bold">Processed</p><h3 className="text-2xl font-bold text-gray-800">{stats?.processed || 0}</h3></div>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div className="p-3 bg-orange-100 rounded-full text-orange-600 mr-4"><FaChartLine size={20} /></div>
+                            <div><p className="text-gray-500 text-xs uppercase font-bold">High Priority</p><h3 className="text-2xl font-bold text-gray-800">{stats?.high_priority || 0}</h3></div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {isAdmin && (

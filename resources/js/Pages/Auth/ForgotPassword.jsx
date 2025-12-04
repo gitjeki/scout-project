@@ -2,7 +2,7 @@ import GuestLayout from '@/Layouts/GuestLayout';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, Link } from '@inertiajs/react'; // 1. Import Link
 
 export default function ForgotPassword({ status }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -39,12 +39,22 @@ export default function ForgotPassword({ status }) {
 
                 <InputError message={errors.email} className="mt-2" />
 
-                <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center justify-between mt-6">
+                    {/* --- 2. TOMBOL KEMBALI (KIRI) --- */}
+                    <Link 
+                        href={route('login')}
+                        className="text-sm text-gray-600 hover:text-gray-900 underline decoration-gray-400 hover:decoration-gray-900 transition-all flex items-center gap-1"
+                    >
+                        &larr; Kembali ke Login
+                    </Link>
+
+                    {/* --- 3. TOMBOL KIRIM (KANAN) --- */}
+                    {/* Saya sesuaikan sedikit agar tidak w-full tapi tetap menonjol */}
                     <PrimaryButton 
-                        className="w-full justify-center bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 border-none" 
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 border-none shadow-md" 
                         disabled={processing}
                     >
-                        Kirim Permintaan ke Admin
+                        Kirim Permintaan
                     </PrimaryButton>
                 </div>
             </form>
