@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Prospect;
 use App\Models\ProspectStatus;
 use App\Models\PredictionScore;
+use App\Models\ContactActivity;       // Model Baru
+use App\Models\DailySalesStat;        // Model Baru
+use App\Models\DailyPipelineSnapshot; // Model Baru
+use App\Models\User;                  // Model Baru (Opsional jika butuh query user)
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -13,12 +17,26 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    // --- KONFIGURASI STATUS (Untuk Pipeline Sales) ---
+    private const PROSPECT_STATUSES = [
+        ['code' => 'NEW',            'type' => 'open',            'desc' => 'Data baru, belum dihubungi'],
+        ['code' => 'CONTACTED',      'type' => 'open',            'desc' => 'Sudah ditelepon, belum ada keputusan'],
+        ['code' => 'INTERESTED',     'type' => 'open',            'desc' => 'Nasabah tertarik, butuh follow up'],
+        ['code' => 'ACCEPTED',       'type' => 'closed_accepted', 'desc' => 'Nasabah setuju mendaftar'],
+        ['code' => 'REFUSED',        'type' => 'closed_refused',  'desc' => 'Nasabah menolak penawaran'],
+        ['code' => 'NO_ANSWER',      'type' => 'closed_refused',  'desc' => 'Telepon tidak diangkat berkali-kali'],
+        ['code' => 'INVALID_NUMBER', 'type' => 'closed_refused',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
+    ];
+
     /**
      * Menampilkan Dashboard
      */
     public function index(Request $request)
     {
-        // --- 1. HITUNG STATISTIK ---
+        $user = $request->user();
+        $isSales = $user->role === 'sales';
+
+        // --- 1. STATISTIK UMUM (Dipakai Admin) ---
         $stats = [
             'total_input' => Prospect::count(),
             'today_input' => Prospect::whereDate('created_at', Carbon::today())->count(),
@@ -26,7 +44,70 @@ class DashboardController extends Controller
             'today_predicted' => PredictionScore::whereDate('scored_at', Carbon::today())->count(),
         ];
 
-        // --- 2. Query Data Tabel ---
+        // --- 2. STATISTIK KHUSUS SALES (Personal & Pipeline) ---
+        $personalStats = null;
+        $pipelineStats = null;
+
+        if ($isSales) {
+            // A. Hitung Personal Stats
+            $today = now()->format('Y-m-d');
+            
+            // Hitung Hot Leads (Target)
+            $hotLeads = Prospect::whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
+                ->whereHas('latestScore', fn($q) => $q->where('priority', 1))
+                ->count();
+
+            // Hitung Calls Made Hari Ini
+            $callsMade = ContactActivity::where('telemarketer_id', $user->id)
+                ->whereDate('contact_at', $today)->count();
+
+            // Hitung Durasi Telepon Hari Ini
+            $durationSec = ContactActivity::where('telemarketer_id', $user->id)
+                ->whereDate('contact_at', $today)->sum('call_duration_sec');
+
+            // Simpan ke DB (Sync ke tabel DailySalesStat)
+            $statRecord = DailySalesStat::updateOrCreate(
+                ['user_id' => $user->id, 'date' => $today],
+                [
+                    'hot_leads_target' => $hotLeads,
+                    'calls_made' => $callsMade,
+                    'total_duration_sec' => $durationSec
+                ]
+            );
+
+            $personalStats = [
+                'hot_leads' => $statRecord->hot_leads_target,
+                'calls_today' => $statRecord->calls_made,
+                'duration_min' => round($statRecord->total_duration_sec / 60, 1),
+            ];
+
+            // B. Hitung Global Pipeline Stats
+            $allStatuses = collect(self::PROSPECT_STATUSES)->where('code', '!==', 'NEW')->values();
+            $pipelineStats = [];
+
+            foreach ($allStatuses as $status) {
+                // Hitung jumlah per status
+                $count = Prospect::whereHas('status', function($q) use ($status) {
+                    $q->where('status_code', $status['code']);
+                })->count();
+
+                // Simpan ke DB (Sync ke tabel DailyPipelineSnapshot)
+                $snapshot = DailyPipelineSnapshot::updateOrCreate(
+                    ['date' => $today, 'status_code' => $status['code']],
+                    ['count' => $count, 'status_desc' => $status['desc']]
+                );
+
+                $pipelineStats[] = [
+                    'code' => $snapshot->status_code,
+                    'desc' => $snapshot->status_desc,
+                    'count' => $snapshot->count,
+                    'color' => $this->getStatusColor($snapshot->status_code)
+                ];
+            }
+        }
+
+        // --- 3. Query Data Tabel (Utama untuk Admin) ---
+        // Jika sales tidak boleh lihat tabel utama, data ini tidak akan dirender di frontend (logic ada di JSX)
         $query = Prospect::with(['status', 'latestScore'])
             ->readyForPrediction(); 
 
@@ -74,7 +155,10 @@ class DashboardController extends Controller
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
             'filters'       => $request->only(['status']),
-            'stats'         => $stats, 
+            'stats'         => $stats,
+            // Data tambahan untuk Sales
+            'personalStats' => $personalStats, 
+            'pipelineStats' => $pipelineStats 
         ]);
     }
 
@@ -187,18 +271,15 @@ class DashboardController extends Controller
             $count = 0;
 
             if ($type === 'selection') {
-                // Menerima array ID (bisa banyak, dari berbagai halaman)
                 $ids = $request->input('ids', []);
                 
                 if (!is_array($ids) || empty($ids)) {
                     return back()->with('error', 'Tidak ada data valid yang dipilih.');
                 }
                 
-                // Hapus berdasarkan array ID
                 $count = Prospect::whereIn('id', $ids)->delete();
 
             } elseif ($type === 'all_filtered') {
-                // Hapus SEMUA berdasarkan filter (sangat berbahaya)
                 $statusFilter = $request->input('status');
                 
                 $query = Prospect::query();
@@ -436,5 +517,20 @@ class DashboardController extends Controller
             return redirect()->route('dashboard')
                 ->with('error', "Gagal memproses. Cek koneksi ke Service Python.");
         }
+    }
+
+    /**
+     * Helper Function: Menentukan warna status
+     */
+    private function getStatusColor($code) {
+        return match($code) {
+            'CONTACTED' => 'blue', 
+            'INTERESTED' => 'purple', 
+            'ACCEPTED' => 'green',
+            'REFUSED' => 'red', 
+            'NO_ANSWER' => 'orange', 
+            'INVALID_NUMBER' => 'gray', 
+            default => 'gray'
+        };
     }
 }

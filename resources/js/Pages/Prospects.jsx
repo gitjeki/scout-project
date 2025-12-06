@@ -3,54 +3,11 @@ import SidebarLayout from '@/Layouts/SidebarLayout';
 import { Head, usePage, router, Link, useForm } from '@inertiajs/react';
 import { 
     FaSave, FaEdit, FaTimes, FaCheckCircle, FaExclamationCircle, 
-    FaUser, FaPhone, FaStopCircle, FaPlayCircle,
-    FaSort, FaSortUp, FaSortDown,
-    FaFire, FaCalendarCheck, FaClock, FaChartPie, FaHistory
+    FaPhone, FaStopCircle, FaPlayCircle,
+    FaSort, FaSortUp, FaSortDown
 } from 'react-icons/fa';
 
 // --- COMPONENTS HELPER ---
-const StatusCard = ({ stat }) => {
-    const bgColors = {
-        blue: 'bg-blue-50 border-blue-200 text-blue-800',
-        purple: 'bg-purple-50 border-purple-200 text-purple-800',
-        green: 'bg-green-50 border-green-200 text-green-800',
-        red: 'bg-red-50 border-red-200 text-red-800',
-        orange: 'bg-orange-50 border-orange-200 text-orange-800',
-        gray: 'bg-gray-50 border-gray-200 text-gray-800',
-    };
-    const activeClass = bgColors[stat.color] || bgColors.gray;
-    return (
-        <div className={`p-3 rounded-lg border shadow-sm ${activeClass} flex flex-col justify-between`}>
-            <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">{stat.code.replace('_', ' ')}</p>
-                <h4 className="text-2xl font-extrabold">{stat.count}</h4>
-            </div>
-            <p className="text-[10px] mt-1 opacity-80 truncate" title={stat.desc}>{stat.desc}</p>
-        </div>
-    );
-};
-
-const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
-    let colors = {
-        red: { bg: 'bg-red-50', text: 'text-red-700', icon: 'text-red-500' },
-        blue: { bg: 'bg-blue-50', text: 'text-blue-700', icon: 'text-blue-500' },
-        green: { bg: 'bg-green-50', text: 'text-green-700', icon: 'text-green-500' },
-    }[color] || { bg: 'bg-gray-50', text: 'text-gray-700', icon: 'text-gray-500' };
-
-    return (
-        <div className={`p-4 rounded-xl shadow-sm border border-gray-200 ${colors.bg}`}>
-            <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-gray-600">{title}</p>
-                <div className={`p-2 rounded-full bg-white shadow-sm ${colors.icon}`}><Icon size={14} /></div>
-            </div>
-            <div className="mt-2">
-                <span className={`text-2xl font-extrabold ${colors.text}`}>{value}</span>
-                <span className="text-xs ml-1 font-medium text-gray-500">{unit}</span>
-            </div>
-            <p className="text-[10px] mt-1 text-gray-500 truncate">{description}</p>
-        </div>
-    );
-};
 
 const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions, currentPage }) => {
     if (!isOpen || !prospect) return null;
@@ -196,7 +153,7 @@ const SalesRow = ({ item, onCallClick }) => {
 };
 
 // --- MAIN PAGE ---
-export default function Prospects({ prospects, statusOptions, telemarketers, channelOptions, filters = {}, personalStats, statusStats }) {
+export default function Prospects({ prospects, statusOptions, telemarketers, channelOptions, filters = {} }) {
     const { flash } = usePage().props;
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -282,9 +239,6 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
         return data.sort_direction === 'asc' ? <FaSortUp className="text-blue-600 ml-1 inline" size={10} /> : <FaSortDown className="text-blue-600 ml-1 inline" size={10} />;
     };
 
-    const safePersonalStats = personalStats || { hot_leads: 0, calls_today: 0, duration_min: 0 };
-    const safeStatusStats = statusStats || [];
-
     return (
         <SidebarLayout header="Sales Workspace">
             <Head title="Prospek & Dashboard" />
@@ -296,25 +250,8 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
                 {flash.error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-2 text-sm flex items-center gap-2"><FaExclamationCircle/> {flash.error}</div>}
             </div>
             
-            {/* --- DASHBOARD SECTION --- */}
-            <div className="mb-6">
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaUser/> Kinerja Anda Hari Ini</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                    <StatsCard icon={FaFire} color="red" title="Target Prioritas" value={safePersonalStats.hot_leads} unit="Prospek" description="Belum dihubungi & High Prio" />
-                    <StatsCard icon={FaCalendarCheck} color="blue" title="Aktivitas Anda" value={safePersonalStats.calls_today} unit="Call" description="Log tersimpan hari ini" />
-                    <StatsCard icon={FaClock} color="green" title="Durasi Bicara" value={safePersonalStats.duration_min} unit="Menit" description="Total durasi telepon hari ini" />
-                </div>
-
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaChartPie/> Global Pipeline Overview</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
-                    {safeStatusStats.map((stat) => (
-                        <StatusCard key={stat.code} stat={stat} />
-                    ))}
-                </div>
-            </div>
-
             {/* --- TABLE SECTION --- */}
-            <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden mt-6">
                 <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-800">Daftar Prospek</h3>
                     <span className="text-xs text-gray-500">Total: {prospects.total} data</span>

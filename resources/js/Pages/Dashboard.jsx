@@ -4,12 +4,106 @@ import {
     FaChartLine, FaRobot, FaCloudUploadAlt, 
     FaCheckCircle, FaExclamationCircle, FaSave, FaEdit, FaTimes, FaPlus,
     FaTrash, FaFilter, FaSpinner,
-    FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle
+    FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle,
+    // Icon Sales
+    FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
-// --- COMPONENTS HELPER ---
+// --- COMPONENTS HELPER (NEW DESIGN) ---
 
+// 1. KARTU PERFORMA (Bagian Atas - Kinerja Anda)
+const PerformanceCard = ({ title, value, unit, subtext, icon: Icon, theme }) => {
+    const themes = {
+        red: { 
+            bg: 'bg-red-50', border: 'border-red-100', 
+            textTitle: 'text-gray-700', textVal: 'text-red-600', 
+            iconBg: 'bg-white', iconColor: 'text-red-500' 
+        },
+        blue: { 
+            bg: 'bg-blue-50', border: 'border-blue-100', 
+            textTitle: 'text-gray-700', textVal: 'text-blue-600', 
+            iconBg: 'bg-white', iconColor: 'text-blue-500' 
+        },
+        green: { 
+            bg: 'bg-green-50', border: 'border-green-100', 
+            textTitle: 'text-gray-700', textVal: 'text-green-600', 
+            iconBg: 'bg-white', iconColor: 'text-green-500' 
+        },
+    };
+
+    const t = themes[theme] || themes.blue;
+
+    return (
+        <div className={`p-6 rounded-xl border ${t.border} ${t.bg} shadow-sm relative overflow-hidden transition-transform hover:scale-[1.01]`}>
+            <div className="flex justify-between items-start mb-4">
+                <h3 className={`text-sm font-bold ${t.textTitle}`}>{title}</h3>
+                <div className={`p-2 rounded-full shadow-sm ${t.iconBg} ${t.iconColor}`}>
+                    <Icon size={16} />
+                </div>
+            </div>
+            <div className="flex items-baseline gap-1 mb-2">
+                <span className={`text-4xl font-extrabold ${t.textVal}`}>{value}</span>
+                <span className="text-sm font-medium text-gray-500">{unit}</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium">{subtext}</p>
+        </div>
+    );
+};
+
+// 2. KARTU PIPELINE (Bagian Bawah - Overview)
+const PipelineStatusCard = ({ title, count, description, statusType }) => {
+    // Config warna berdasarkan status (meniru gambar)
+    const config = {
+        'CONTACTED': { 
+            bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600',
+            defaultDesc: 'Sudah ditelepon, belum ada keputusan'
+        },
+        'INTERESTED': { 
+            bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600',
+            defaultDesc: 'Nasabah tertarik, butuh follow up'
+        },
+        'ACCEPTED': { 
+            bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600',
+            defaultDesc: 'Nasabah setuju mendaftar'
+        },
+        'REFUSED': { 
+            bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600',
+            defaultDesc: 'Nasabah menolak penawaran'
+        },
+        'NO ANSWER': { 
+            bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600',
+            defaultDesc: 'Telepon tidak diangkat berkali-kali'
+        },
+        'INVALID NUMBER': { 
+            bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600',
+            defaultDesc: 'Nomor telepon salah/tidak terdaftar'
+        }
+    };
+
+    // Fallback jika status tidak dikenali
+    const style = config[title.toUpperCase()] || { 
+        bg: 'bg-white', border: 'border-gray-200', text: 'text-gray-700', defaultDesc: 'Status prospek' 
+    };
+
+    return (
+        <div className={`p-4 rounded-lg border ${style.border} ${style.bg} h-full flex flex-col justify-between shadow-sm`}>
+            <div>
+                <h4 className={`text-[11px] font-bold uppercase tracking-wider ${style.text} mb-2`}>
+                    {title}
+                </h4>
+                <div className="text-3xl font-extrabold text-gray-800 mb-2">
+                    {count}
+                </div>
+            </div>
+            <p className="text-[10px] text-gray-500 leading-tight">
+                {description || style.defaultDesc}
+            </p>
+        </div>
+    );
+};
+
+// --- KOMPONEN LAMA (STATS CARD ADMIN) ---
 const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
     let colors = {
         red: { bg: 'bg-red-50', text: 'text-red-700', icon: 'text-red-500' },
@@ -286,9 +380,11 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 };
 
 // --- MAIN PAGE ---
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {} }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, pipelineStats }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
+    const isSales = auth.user.role === 'sales';
+
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     
     // STATES FOR FILTER & SELECTION
@@ -297,10 +393,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     
     // STATE FOR DELETE MODAL
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, type: '', targetId: null });
-    const [isDeleting, setIsDeleting] = useState(false); // State untuk loading saat hapus
+    const [isDeleting, setIsDeleting] = useState(false); 
 
-    // RESET SELECTION: Hanya reset jika Filter berubah (Konteks data berubah total)
-    // Kita MENGHAPUS dependency [prospects.current_page] agar seleksi bertahan saat pindah halaman
+    // RESET SELECTION
     useEffect(() => { setSelectedIds([]); }, [filterStatus]);
     
     // Logic Filter
@@ -311,29 +406,25 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     };
 
     // --- LOGIKA SELEKSI HALAMAN ---
-    // Cek apakah semua data di halaman ini sudah terpilih
     const currentPageIds = prospects.data.map(p => p.id);
     const isAllCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.includes(id));
 
     const handleSelectAllCurrentPage = (e) => {
         if (e.target.checked) {
-            // Tambahkan ID halaman ini ke selectedIds (hindari duplikat)
             const newSelection = [...new Set([...selectedIds, ...currentPageIds])];
             setSelectedIds(newSelection);
         } else {
-            // Hapus ID halaman ini dari selectedIds (biarkan ID halaman lain tetap ada)
             const newSelection = selectedIds.filter(id => !currentPageIds.includes(id));
             setSelectedIds(newSelection);
         }
     };
 
-    // Logic Select Single Row
     const handleSelectRow = (id) => {
         if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(sid => sid !== id));
         else setSelectedIds([...selectedIds, id]);
     };
 
-    // --- LOGIKA TRIGGER DELETE (MEMBUKA MODAL) ---
+    // --- LOGIKA TRIGGER DELETE ---
     const requestDeleteSingle = (id) => {
         setDeleteModalState({ isOpen: true, type: 'single', targetId: id });
     };
@@ -346,7 +437,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         setDeleteModalState({ isOpen: true, type: 'all_filtered', statusName: filterStatus });
     };
 
-    // --- EKSEKUSI DELETE SETELAH KONFIRMASI ---
+    // --- EKSEKUSI DELETE ---
     const confirmDelete = () => {
         const { type, targetId } = deleteModalState;
         setIsDeleting(true);
@@ -357,21 +448,20 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 onFinish: () => {
                     setIsDeleting(false);
                     setDeleteModalState({ isOpen: false, type: '', targetId: null });
-                    // Hapus ID dari seleksi jika kebetulan sedang terpilih
                     setSelectedIds(prev => prev.filter(id => id !== targetId));
                 }
             });
         } else if (type === 'selection' || type === 'all_filtered') {
             router.post(route('dashboard.bulk-destroy'), {
                 type: type,
-                ids: selectedIds, // Kirim semua ID terpilih (bisa lintas halaman)
+                ids: selectedIds, 
                 status: filterStatus
             }, {
                 preserveScroll: true,
                 onFinish: () => {
                     setIsDeleting(false);
                     setDeleteModalState({ isOpen: false, type: '', targetId: null });
-                    if(type === 'selection') setSelectedIds([]); // Reset selection setelah hapus batch
+                    if(type === 'selection') setSelectedIds([]); 
                 }
             });
         }
@@ -403,18 +493,16 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
 
     return (
-        <SidebarLayout header="Sales Analysis Dashboard">
+        <SidebarLayout header={isSales ? "Sales Dashboard" : "Administrator Dashboard"}>
             <Head title="Dashboard" />
             
             <FloatingToast flash={flash} errors={errors} />
 
-            {/* LOADING OVERLAY GENERAL */}
             <LoadingOverlay 
                 isVisible={processingPredict || processingImport || isDeleting} 
                 mode={isDeleting ? 'delete' : (processingImport ? 'import' : 'predict')} 
             />
 
-            {/* MODALS */}
             <CreateProspectModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
             
             <DeleteConfirmModal 
@@ -426,18 +514,94 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 statusName={deleteModalState.statusName}
             />
 
-            {/* --- DATA SUMMARY CARDS --- */}
-            <div className="mb-8">
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <FaChartPie/> Data Summary
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatsCard icon={FaDatabase} color="blue" title="Total Data Input" value={stats.total_input} unit="Row" description="Gabungan Manual & Import" />
-                    <StatsCard icon={FaCalendarDay} color="green" title="Input Hari Ini" value={stats.today_input} unit="Row" description="Data baru masuk hari ini" />
-                    <StatsCard icon={FaRobot} color="purple" title="Total Diprediksi" value={stats.total_predicted} unit="Row" description="Total data selesai diproses AI" />
-                    <StatsCard icon={FaChartLine} color="orange" title="Prediksi Hari Ini" value={stats.today_predicted} unit="Row" description="Hasil prediksi AI hari ini" />
+            {/* --- BAGIAN 1: STATISTIK & KINERJA SALES (REDESIGNED) --- */}
+            {isSales && personalStats && pipelineStats && (
+                <div className="mb-8 space-y-8 animate-fade-in-up">
+                    
+                    {/* SECTION: KINERJA ANDA HARI INI */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-gray-500">
+                            <FaChartLine />
+                            <h3 className="text-sm font-bold uppercase tracking-wider">Kinerja Anda Hari Ini</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Card 1: Target Prioritas (Red) */}
+                            <PerformanceCard 
+                                title="Target Prioritas"
+                                value={personalStats.hot_leads}
+                                unit="Prospek"
+                                subtext="NEW  & High Prioritas"
+                                icon={FaFire}
+                                theme="red"
+                            />
+
+                            {/* Card 2: Aktivitas Anda (Blue) */}
+                            <PerformanceCard 
+                                title="Aktivitas Anda"
+                                value={personalStats.calls_today}
+                                unit="Call"
+                                subtext="Log tersimpan hari ini"
+                                icon={FaRegCalendarAlt}
+                                theme="blue"
+                            />
+
+                            {/* Card 3: Durasi Bicara (Green) */}
+                            <PerformanceCard 
+                                title="Durasi Bicara"
+                                value={personalStats.duration_min}
+                                unit="Menit"
+                                subtext="Total durasi telepon hari ini"
+                                icon={FaStopwatch}
+                                theme="green"
+                            />
+                        </div>
+                    </div>
+
+                    {/* SECTION: GLOBAL PIPELINE OVERVIEW */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-gray-500">
+                            <FaProjectDiagram />
+                            <h3 className="text-sm font-bold uppercase tracking-wider">Global Pipeline Overview</h3>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            {/* Kita map pipelineStats. Jika data kosong, tampilkan placeholder */}
+                            {pipelineStats.length > 0 ? (
+                                pipelineStats.map((stat, idx) => (
+                                    <PipelineStatusCard 
+                                        key={idx}
+                                        title={stat.code}
+                                        count={stat.count}
+                                        // Description otomatis diambil di dalam komponen berdasarkan title/code
+                                        statusType={stat.code} 
+                                    />
+                                ))
+                            ) : (
+                                <div className="col-span-6 text-center text-gray-400 text-sm py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                    Belum ada data pipeline hari ini.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
-            </div>
+            )}
+
+            {/* TAMPILAN KHUSUS ADMIN: System Overview (Tetap style lama atau bisa disesuaikan) */}
+            {isAdmin && (
+                <div className="mb-8">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <FaChartPie/> Data Summary (System)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <StatsCard icon={FaDatabase} color="blue" title="Total Data Input" value={stats.total_input} unit="Row" description="Gabungan Manual & Import" />
+                        <StatsCard icon={FaCalendarDay} color="green" title="Input Hari Ini" value={stats.today_input} unit="Row" description="Data baru masuk hari ini" />
+                        <StatsCard icon={FaRobot} color="purple" title="Total Diprediksi" value={stats.total_predicted} unit="Row" description="Total data selesai diproses AI" />
+                        <StatsCard icon={FaChartLine} color="orange" title="Prediksi Hari Ini" value={stats.today_predicted} unit="Row" description="Hasil prediksi AI hari ini" />
+                    </div>
+                </div>
+            )}
 
             {isAdmin && (
                 <>
@@ -454,7 +618,6 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                     {/* Batch Actions Section */}
                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                        {/* Tombol Hapus Terpilih Selalu Muncul Jika Ada Seleksi */}
                         {selectedIds.length > 0 && (
                             <button onClick={requestDeleteSelection} className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition animate-fade-in">
                                 <FaTrash /> Hapus {selectedIds.length} Terpilih
