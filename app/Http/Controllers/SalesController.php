@@ -7,8 +7,8 @@ use App\Models\ProspectStatus;
 use App\Models\ContactActivity;
 use App\Models\User;
 use App\Models\PredictionScore;
-use App\Models\DailySalesStat;       // Model Baru
-use App\Models\DailyPipelineSnapshot; // Model Baru
+use App\Models\DailySalesStat;
+use App\Models\DailyPipelineSnapshot;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +27,9 @@ class SalesController extends Controller
         ['code' => 'INVALID_NUMBER', 'type' => 'closed_refused',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
     ];
 
+    /**
+     * Halaman Utama Sales (List Prospek)
+     */
     public function index(Request $request)
     {
         if ($request->user()->role !== 'sales') {
@@ -36,12 +39,12 @@ class SalesController extends Controller
         $user = $request->user();
         
         // --- 1. UPDATE & AMBIL STATISTIK DARI DATABASE ---
-        // Kita hitung real-time, lalu simpan ke DB, baru kirim ke view.
         $personalStats = $this->syncAndGetPersonalStats($user->id);
         $statusStats   = $this->syncAndGetPipelineStats();
 
-        // --- 2. LOGIKA FILTER & SORTING (Sama seperti sebelumnya) ---
-        $sortField = $request->input('sort_field', 'created_at'); 
+        // --- 2. LOGIKA FILTER & SORTING ---
+        // UPDATE: Default Sort sekarang 'score' (Highest Score First)
+        $sortField = $request->input('sort_field', 'score'); 
         $sortDirection = $request->input('sort_direction', 'desc');
         $searchQuery = $request->input('search');
 
@@ -49,7 +52,10 @@ class SalesController extends Controller
         $query = Prospect::query()
             ->with(['status', 'latestScore', 'latestActivity.telemarketer'])
             ->withSum('contactActivities', 'call_duration_sec')
-            ->withCount('contactActivities');
+            ->withCount('contactActivities')
+            // Filter: Hanya data lengkap & sudah diprediksi
+            ->readyForPrediction() 
+            ->has('latestScore'); 
 
         // --- Filters ---
         if ($val = $request->input('filter_status')) {
@@ -86,11 +92,12 @@ class SalesController extends Controller
         } elseif ($sortField === 'call_count') {
              $query->orderBy('contact_activities_count', $sortDirection);
         } else {
+            // Fallback untuk kolom biasa (id, age, job, dll)
             $realField = ($sortField === 'prospect_id') ? 'id' : $sortField;
             $query->orderBy($realField, $sortDirection);
         }
 
-        // Pagination & Transform
+        // Pagination & Transform Data
         $prospects = $query->paginate(20)->withQueryString()
             ->through(fn ($item) => $this->transformProspectData($item));
 
@@ -101,12 +108,15 @@ class SalesController extends Controller
             'statusOptions'   => self::PROSPECT_STATUSES,
             'telemarketers'   => $telemarketers,
             'channelOptions'  => ['Phone', 'Email', 'WhatsApp', 'SMS'],
-            'filters'         => $request->all(),
-            'personalStats'   => $personalStats, // Data dari DB
-            'statusStats'     => $statusStats    // Data dari DB
+            'filters'         => $request->all(), // Kirim balik parameter sort ke frontend
+            'personalStats'   => $personalStats, 
+            'statusStats'     => $statusStats    
         ]);
     }
 
+    /**
+     * Mencatat Aktivitas Sales (Log Call/Follow up)
+     */
     public function logActivity(Request $request)
     {
         $validated = $request->validate([
@@ -121,8 +131,11 @@ class SalesController extends Controller
         DB::beginTransaction();
         try {
             $prospect = Prospect::findOrFail($validated['prospect_id']);
+            
+            // Update Status & Deskripsi
             $statusId = $this->updateProspectStatusAndDesc($prospect, $validated['status_code'], $validated['contact_notes']);
 
+            // Buat Record Activity
             ContactActivity::create([
                 'prospect_id'        => $prospect->id,
                 'telemarketer_id'    => $request->user()->id,
@@ -133,7 +146,7 @@ class SalesController extends Controller
                 'contact_at'         => now(),
             ]);
 
-            // --- RE-SYNC STATS KE DB SETELAH AKTIVITAS BARU ---
+            // Re-sync statistik
             $this->syncAndGetPersonalStats($request->user()->id);
             $this->syncAndGetPipelineStats();
 
@@ -141,8 +154,9 @@ class SalesController extends Controller
             
             return redirect()->route('sales.prospects.index', [
                 'page' => $validated['current_page'] ?? 1,
-                'sort_field' => $request->input('sort_field'),
-                'sort_direction' => $request->input('sort_direction'),
+                // Pastikan sort preferences tetap terjaga setelah submit
+                'sort_field' => $request->input('sort_field', 'score'),
+                'sort_direction' => $request->input('sort_direction', 'desc'),
             ])->with('success', "Log aktivitas #{$prospect->id} tersimpan.");
 
         } catch (\Exception $e) {
@@ -157,21 +171,30 @@ class SalesController extends Controller
          $prospect->description = $desc;
          $statusConfig = collect(self::PROSPECT_STATUSES)->firstWhere('code', $code);
          $statusId = $prospect->prospect_status_id;
+         
          if ($statusConfig) {
              $statusModel = ProspectStatus::firstOrCreate(['status_code' => $code], [
-                 'status_type' => $statusConfig['type'], 'description' => $statusConfig['desc'], 'updated_by_user_id' => auth()->id()
+                 'status_type' => $statusConfig['type'], 
+                 'description' => $statusConfig['desc'], 
+                 'updated_by_user_id' => auth()->id()
              ]);
              $prospect->prospect_status_id = $statusModel->id;
              $statusId = $statusModel->id;
          }
+         
          $prospect->save();
          return $statusId;
     }
 
     private function getStatusColor($code) {
         return match($code) {
-            'CONTACTED' => 'blue', 'INTERESTED' => 'purple', 'ACCEPTED' => 'green',
-            'REFUSED' => 'red', 'NO_ANSWER' => 'orange', 'INVALID_NUMBER' => 'gray', default => 'gray'
+            'CONTACTED' => 'blue', 
+            'INTERESTED' => 'purple', 
+            'ACCEPTED' => 'green',
+            'REFUSED' => 'red', 
+            'NO_ANSWER' => 'orange', 
+            'INVALID_NUMBER' => 'gray', 
+            default => 'gray'
         };
     }
 
@@ -202,15 +225,10 @@ class SalesController extends Controller
 
     // --- DATABASE STATS SYNC LOGIC ---
 
-    /**
-     * Menghitung statistik personal real-time, menyimpannya ke tabel DailySalesStat,
-     * lalu mengembalikan data yang sudah diformat untuk Frontend.
-     */
     private function syncAndGetPersonalStats($userId)
     {
         $today = now()->format('Y-m-d');
 
-        // 1. Hitung Real-time
         $hotLeads = Prospect::whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
             ->whereHas('latestScore', fn($q) => $q->where('priority', 1))
             ->count();
@@ -221,7 +239,6 @@ class SalesController extends Controller
         $durationSec = ContactActivity::where('telemarketer_id', $userId)
             ->whereDate('contact_at', $today)->sum('call_duration_sec');
 
-        // 2. Simpan/Update ke Database
         $stat = DailySalesStat::updateOrCreate(
             ['user_id' => $userId, 'date' => $today],
             [
@@ -231,7 +248,6 @@ class SalesController extends Controller
             ]
         );
 
-        // 3. Return format untuk Frontend
         return [
             'hot_leads' => $stat->hot_leads_target,
             'calls_today' => $stat->calls_made,
@@ -239,10 +255,6 @@ class SalesController extends Controller
         ];
     }
 
-    /**
-     * Menghitung statistik pipeline global real-time, menyimpannya ke tabel DailyPipelineSnapshot,
-     * lalu mengembalikan array untuk Frontend.
-     */
     private function syncAndGetPipelineStats()
     {
         $today = now()->format('Y-m-d');
@@ -250,21 +262,15 @@ class SalesController extends Controller
         $formattedStats = [];
 
         foreach ($allStatuses as $status) {
-            // 1. Hitung Real-time
             $count = Prospect::whereHas('status', function($q) use ($status) {
                 $q->where('status_code', $status['code']);
             })->count();
 
-            // 2. Simpan/Update ke Database
             $snapshot = DailyPipelineSnapshot::updateOrCreate(
                 ['date' => $today, 'status_code' => $status['code']],
-                [
-                    'count' => $count,
-                    'status_desc' => $status['desc']
-                ]
+                ['count' => $count, 'status_desc' => $status['desc']]
             );
 
-            // 3. Format untuk Frontend
             $formattedStats[] = [
                 'code' => $snapshot->status_code,
                 'desc' => $snapshot->status_desc,
