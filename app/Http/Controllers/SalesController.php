@@ -6,9 +6,11 @@ use App\Models\Prospect;
 use App\Models\ProspectStatus;
 use App\Models\ContactActivity;
 use App\Models\User;
+use App\Models\PredictionScore; // Pastikan Model ini di-import
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class SalesController extends Controller
 {
@@ -23,9 +25,6 @@ class SalesController extends Controller
         ['code' => 'INVALID_NUMBER', 'type' => 'closed_refused',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
     ];
 
-    /**
-     * HALAMAN UTAMA SALES (Dashboard + Tabel)
-     */
     public function index(Request $request)
     {
         if ($request->user()->role !== 'sales') {
@@ -35,22 +34,19 @@ class SalesController extends Controller
         $userId = $request->user()->id;
         $today  = now()->format('Y-m-d');
 
-        // --- 1. HITUNG STATISTIK PERSONAL (Kinerja Sales yang Login) ---
-        // Hot Leads: Status NEW & Prioritas 1
+        // --- 1. STATISTIK PERSONAL ---
         $hotLeadsCount = Prospect::whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
             ->whereHas('latestScore', fn($q) => $q->where('priority', 1))
             ->count();
 
-        // Panggilan Sales Hari Ini
         $myCallsToday = ContactActivity::where('telemarketer_id', $userId)
             ->whereDate('contact_at', $today)->count();
 
-        // Durasi Sales Hari Ini
         $myDurationSec = ContactActivity::where('telemarketer_id', $userId)
             ->whereDate('contact_at', $today)->sum('call_duration_sec');
         $myDurationMin = round($myDurationSec / 60, 1);
 
-        // --- 2. HITUNG STATISTIK GLOBAL PIPELINE (Semua Data) ---
+        // --- 2. STATISTIK GLOBAL PIPELINE ---
         $statusStats = [];
         $allStatuses = collect(self::PROSPECT_STATUSES)->where('code', '!==', 'NEW')->values();
 
@@ -60,66 +56,73 @@ class SalesController extends Controller
             })->count();
 
             $statusStats[] = [
-                'code'  => $status['code'],
-                'desc'  => $status['desc'],
-                'count' => $count,
+                'code' => $status['code'], 'desc' => $status['desc'], 'count' => $count,
                 'color' => $this->getStatusColor($status['code'])
             ];
         }
 
-        // --- 3. LOGIKA FILTER & TABEL ---
+        // --- 3. LOGIKA FILTER & SORTING ---
         $sortField = $request->input('sort_field', 'created_at'); 
         $sortDirection = $request->input('sort_direction', 'desc');
-        
-        // Ambil input filter
-        $filterStatus = $request->input('filter_status');
-        $filterPriority = $request->input('filter_priority');
-        $filterTelemarketer = $request->input('filter_telemarketer');
-        $filterChannel = $request->input('filter_channel');
         $searchQuery = $request->input('search');
 
-        // UPDATE: Tambahkan withSum untuk menghitung total durasi
-        $query = Prospect::with(['status', 'latestScore', 'latestActivity.telemarketer'])
-            ->withSum('contactActivities', 'call_duration_sec');
+        // Query Utama
+        $query = Prospect::query()
+            ->with(['status', 'latestScore', 'latestActivity.telemarketer'])
+            ->withSum('contactActivities', 'call_duration_sec')
+            ->withCount('contactActivities'); // Penting untuk sort Total Call
 
-        // Filter Logic
-        if (!empty($filterStatus)) {
-            $query->whereHas('status', fn($q) => $q->where('status_code', $filterStatus));
+        // --- Filters ---
+        if ($val = $request->input('filter_status')) {
+            $query->whereHas('status', fn($q) => $q->where('status_code', $val));
         }
-
-        if ($filterPriority !== null && $filterPriority !== '') {
-            $query->whereHas('latestScore', fn($q) => $q->where('priority', (int)$filterPriority));
+        if ($val = $request->input('filter_priority')) {
+            $query->whereHas('latestScore', fn($q) => $q->where('priority', (int)$val));
         }
-
-        if ($filterTelemarketer !== null && $filterTelemarketer !== '') {
-            $query->whereHas('latestActivity', fn($q) => $q->where('telemarketer_id', $filterTelemarketer));
+        if ($val = $request->input('filter_telemarketer')) {
+            $query->whereHas('latestActivity', fn($q) => $q->where('telemarketer_id', $val));
         }
-
-        if ($filterChannel !== null && $filterChannel !== '') {
-            $query->whereHas('latestActivity', fn($q) => $q->where('contact_channel', $filterChannel));
+        if ($val = $request->input('filter_channel')) {
+            $query->whereHas('latestActivity', fn($q) => $q->where('contact_channel', $val));
         }
-
         if ($searchQuery) {
             $query->where('id', 'LIKE', "%{$searchQuery}%");
         }
 
-        // Custom Sort Logic
+        // --- OPTIMASI SORTING GLOBAL ---
+        
         if ($sortField === 'score') {
-            $query->leftJoin('prediction_scores as ps', function($join) {
-                $join->on('prospects.id', '=', 'ps.prospect_id')->whereRaw('ps.id = (SELECT MAX(id) FROM prediction_scores WHERE prospect_id = prospects.id)');
-            })->orderBy('ps.score_value', $sortDirection)->select('prospects.*');
-        
+            // Subquery Order: Mengurutkan berdasarkan value score terbaru
+            $query->orderBy(
+                PredictionScore::select('score_value')
+                    ->whereColumn('prospect_id', 'prospects.id')
+                    ->latest('id')
+                    ->limit(1),
+                $sortDirection
+            );
+
         } elseif ($sortField === 'priority') {
-             $query->leftJoin('prediction_scores as ps2', function($join) {
-                $join->on('prospects.id', '=', 'ps2.prospect_id')->whereRaw('ps2.id = (SELECT MAX(id) FROM prediction_scores WHERE prospect_id = prospects.id)');
-            })->orderBy('ps2.priority', $sortDirection)->select('prospects.*');
-        
-        } elseif ($sortField === 'prospect_id') {
-            $query->orderBy('id', $sortDirection);
+            // Subquery Order: Mengurutkan berdasarkan priority terbaru
+            $query->orderBy(
+                PredictionScore::select('priority')
+                    ->whereColumn('prospect_id', 'prospects.id')
+                    ->latest('id')
+                    ->limit(1),
+                $sortDirection
+            );
+            
+        } elseif ($sortField === 'call_count') {
+             // Sorting berdasarkan hasil count relasi
+             $query->orderBy('contact_activities_count', $sortDirection);
+
         } else {
-            $query->orderBy($sortField, $sortDirection);
+            // Default: Sorting kolom tabel prospects (ID, Created_at, dll)
+            // Mapping nama field FE ke nama kolom database jika beda
+            $realField = ($sortField === 'prospect_id') ? 'id' : $sortField;
+            $query->orderBy($realField, $sortDirection);
         }
 
+        // Pagination & Transform
         $prospects = $query->paginate(20)->withQueryString()
             ->through(fn ($item) => $this->transformProspectData($item));
 
@@ -168,8 +171,12 @@ class SalesController extends Controller
 
             DB::commit();
             
-            return redirect()->route('sales.prospects.index', ['page' => $validated['current_page'] ?? 1])
-                ->with('success', "Log aktivitas #{$prospect->id} tersimpan.");
+            return redirect()->route('sales.prospects.index', [
+                'page' => $validated['current_page'] ?? 1,
+                // Kita perlu mempertahankan filter yang ada saat redirect balik
+                'sort_field' => $request->input('sort_field'),
+                'sort_direction' => $request->input('sort_direction'),
+            ])->with('success', "Log aktivitas #{$prospect->id} tersimpan.");
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -200,9 +207,12 @@ class SalesController extends Controller
     }
 
     private function transformProspectData($item) {
-        // UPDATE: Mapping total durasi dari hasil withSum
-        // Laravel secara otomatis menamai kolom sum sebagai {relation_name}_sum_{column_name}
         $totalDuration = (int) $item->contact_activities_sum_call_duration_sec ?? 0;
+        $callCount = $item->contact_activities_count ?? 0;
+
+        $lastContactAt = $item->latestActivity 
+            ? Carbon::parse($item->latestActivity->contact_at)->format('d M H:i') 
+            : '-';
 
         return [
             'prospect_id' => $item->id, 
@@ -212,15 +222,11 @@ class SalesController extends Controller
             'priority' => $item->latestScore?->priority, 
             'telemarketer_name' => $item->latestActivity?->telemarketer?->name ?? '-',
             'contact_channel' => $item->latestActivity?->contact_channel ?? '-',
-            // 'call_duration_sec' => $item->latestActivity?->call_duration_sec ?? 0, // Code lama
-            'total_duration_sec' => $totalDuration, // Code baru (Total)
+            'total_duration_sec' => $totalDuration,
+            'call_count' => $callCount, 
+            'last_contact_at' => $lastContactAt, 
             'age' => $item->age, 
             'job' => $item->job, 
-            'education' => $item->education, 
-            'month' => $item->month,
-            'duration' => $item->duration, 
-            'campaign' => $item->campaign, 
-            'poutcome' => $item->poutcome,
             'created_at' => $item->created_at->toIso8601String(),
         ];
     }

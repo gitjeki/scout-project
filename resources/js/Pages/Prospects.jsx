@@ -5,7 +5,7 @@ import {
     FaSave, FaEdit, FaTimes, FaCheckCircle, FaExclamationCircle, 
     FaUser, FaPhone, FaStopCircle, FaPlayCircle,
     FaSort, FaSortUp, FaSortDown,
-    FaFire, FaCalendarCheck, FaClock, FaChartPie 
+    FaFire, FaCalendarCheck, FaClock, FaChartPie, FaHistory
 } from 'react-icons/fa';
 
 // --- COMPONENTS HELPER ---
@@ -91,7 +91,10 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions, currentPa
             contact_notes: notes,
             call_duration_sec: duration,
             contact_channel: channel,
-            current_page: currentPage 
+            current_page: currentPage,
+            // Kirim parameter sorting saat ini agar tidak reset saat refresh
+            sort_field: new URLSearchParams(window.location.search).get('sort_field'),
+            sort_direction: new URLSearchParams(window.location.search).get('sort_direction'),
         }, {
             onSuccess: () => onClose(),
             preserveScroll: true
@@ -143,7 +146,6 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions, currentPa
 };
 
 const SalesRow = ({ item, onCallClick }) => {
-    // UPDATE: Helper untuk memformat durasi total (detik -> "1m 30s")
     const formatDuration = (seconds) => {
         if (!seconds) return '-';
         const m = Math.floor(seconds / 60);
@@ -168,10 +170,18 @@ const SalesRow = ({ item, onCallClick }) => {
             </td>
             <td className="px-4 py-3 font-bold text-blue-600">{item.score ? (item.score * 100).toFixed(0) + '%' : '-'}</td>
             <td className="px-4 py-3 text-xs">{item.job || '-'}</td>
-            <td className="px-4 py-3 text-xs">{item.duration}s</td>
+            <td className="px-4 py-3 text-xs font-medium text-gray-700">{item.age} Th</td>
             <td className="px-4 py-3 text-xs">{item.telemarketer_name !== '-' ? item.telemarketer_name : '-'}</td>
             
-            {/* UPDATE: Menggunakan total_duration_sec */}
+            {/* CLEAN BG: Warna putih sesuai request */}
+            <td className="px-4 py-3 text-center text-xs font-bold text-gray-600">
+                {item.call_count > 0 ? item.call_count : <span className="text-gray-300">-</span>}
+            </td>
+
+            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+               {item.last_contact_at}
+            </td>
+            
             <td className="px-4 py-3 font-mono text-xs">
                 {item.total_duration_sec > 0 ? (
                     <span className="text-purple-700 font-bold bg-purple-50 px-2 py-1 rounded">
@@ -197,6 +207,7 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
         filter_priority: filters.filter_priority || '', 
         filter_telemarketer: filters.filter_telemarketer || '',
         filter_channel: filters.filter_channel || '', 
+        // Initial state dari server
         sort_field: filters.sort_field || 'created_at',
         sort_direction: filters.sort_direction || 'desc', 
         page: filters.page || 1,
@@ -204,6 +215,7 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
 
     useEffect(() => {
         setData({
+            ...data,
             search: filters.search || '',
             filter_status: filters.filter_status || '',
             filter_priority: filters.filter_priority || '',
@@ -241,12 +253,26 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
         router.get(route('sales.prospects.index'), {}, { preserveState: false, preserveScroll: true });
     };
 
+    // SERVER-SIDE SORTING HANDLER
     const handleSort = (field) => {
-        const newDirection = (field === data.sort_field && data.sort_direction === 'asc') ? 'desc' : 'asc';
-        const queryParams = { ...data, sort_field: field, sort_direction: newDirection };
-        
+        let newDirection = 'desc';
+        // Jika field sama dengan yang aktif sekarang, balik arahnya
+        if (data.sort_field === field) {
+            newDirection = data.sort_direction === 'asc' ? 'desc' : 'asc';
+        }
+
         setData({ ...data, sort_field: field, sort_direction: newDirection });
-        router.get(route('sales.prospects.index'), queryParams, { preserveState: true, preserveScroll: true });
+        
+        // Panggil Backend
+        router.get(route('sales.prospects.index'), {
+            ...data,
+            sort_field: field,
+            sort_direction: newDirection,
+            page: 1 // Reset page ke 1
+        }, { 
+            preserveState: true, 
+            preserveScroll: true 
+        });
     };
 
     const handleCallClick = (prospect) => { setSelectedProspect(prospect); setIsModalOpen(true); };
@@ -300,35 +326,30 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
                         <label className="text-[10px] font-bold text-gray-500">Search ID</label>
                         <input type="text" value={data.search} onChange={(e) => handleFilterChange('search', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8" placeholder="ID..." />
                     </div>
-                    
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Status</label>
                         <select value={data.filter_status} onChange={(e) => handleFilterChange('filter_status', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
                             <option value="">Semua</option>{statusOptions.map(opt => <option key={opt.code} value={opt.code}>{opt.code}</option>)}
                         </select>
                     </div>
-
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Prioritas</label>
                         <select value={data.filter_priority} onChange={(e) => handleFilterChange('filter_priority', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
                             <option value="">Semua</option><option value="1">High</option><option value="2">Medium</option><option value="3">Low</option>
                         </select>
                     </div>
-
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Telemarketer</label>
                         <select value={data.filter_telemarketer} onChange={(e) => handleFilterChange('filter_telemarketer', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
                             <option value="">Semua</option>{telemarketers.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                         </select>
                     </div>
-
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Channel</label>
                         <select value={data.filter_channel} onChange={(e) => handleFilterChange('filter_channel', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
                             <option value="">Semua</option>{channelOptions.map(ch => <option key={ch} value={ch}>{ch}</option>)}
                         </select>
                     </div>
-
                     <button onClick={handleReset} className="h-8 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs font-bold border border-gray-300">Reset</button>
                 </div>
 
@@ -337,23 +358,24 @@ export default function Prospects({ prospects, statusOptions, telemarketers, cha
                         <thead className="bg-gray-100 text-gray-600 uppercase text-xs font-bold border-b border-gray-200">
                             <tr>
                                 <th className="px-4 py-3 text-center sticky left-0 bg-gray-100 z-10 w-16">Call</th>
-                                <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort('prospect_id')}>ID {renderSortIcon('prospect_id')}</th>
+                                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('prospect_id')}>ID {renderSortIcon('prospect_id')}</th>
                                 <th className="px-4 py-3">Status</th>
                                 <th className="px-4 py-3">Deskripsi</th>
-                                <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort('priority')}>Prio {renderSortIcon('priority')}</th>
-                                <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort('score')}>Score {renderSortIcon('score')}</th>
+                                <th className="px-4 py-3">Prio</th>
+                                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('score')}>Score {renderSortIcon('score')}</th>
                                 <th className="px-4 py-3">Job</th>
-                                <th className="px-4 py-3">Dur(s)</th>
-                                <th className="px-4 py-3">Telemarketer</th>
-                                {/* UPDATE: Header Kolom Total Durasi */}
-                                <th className="px-4 py-3 text-purple-700">Total Call</th>
+                                <th className="px-4 py-3">Age</th>
+                                <th className="px-1 py-3">Telemarketer</th>
+                                <th className="px-1 py-3 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('call_count')}>Total Call {renderSortIcon('call_count')}</th>
+                                <th className="px-4 py-3">Last Contact</th>
+                                <th className="px-1 py-3 text-purple-700">Total Dur</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
                             {prospects.data.length > 0 ? (
                                 prospects.data.map((item) => <SalesRow key={item.prospect_id} item={item} onCallClick={handleCallClick} />)
                             ) : (
-                                <tr><td colSpan="10" className="px-6 py-10 text-center text-gray-500 italic">Data tidak ditemukan.</td></tr>
+                                <tr><td colSpan="13" className="px-6 py-10 text-center text-gray-500 italic">Data tidak ditemukan.</td></tr>
                             )}
                         </tbody>
                     </table>
