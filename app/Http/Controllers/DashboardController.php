@@ -14,48 +14,48 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
     /**
-     * Menampilkan Dashboard dengan Filter & Pagination (TANPA CARD STATISTIK)
+     * Menampilkan Dashboard
      */
     public function index(Request $request)
     {
-        // 1. Query Dasar
-        $query = Prospect::with(['status', 'latestScore']);
+        // --- 1. HITUNG STATISTIK ---
+        $stats = [
+            'total_input' => Prospect::count(),
+            'today_input' => Prospect::whereDate('created_at', Carbon::today())->count(),
+            'total_predicted' => PredictionScore::count(),
+            'today_predicted' => PredictionScore::whereDate('scored_at', Carbon::today())->count(),
+        ];
 
-        // --- FILTER LOGIC ---
-        // Jika ada parameter 'status' dari dropdown frontend, filter query
+        // --- 2. Query Data Tabel ---
+        $query = Prospect::with(['status', 'latestScore'])
+            ->readyForPrediction(); 
+
+        // Filter Status
         if ($request->has('status') && $request->status != '') {
             $query->whereHas('status', function($q) use ($request) {
                 $q->where('status_code', $request->status);
             });
         }
 
-        // BAGIAN STATISTIK (CARD) DIHAPUS SESUAI PERMINTAAN
-        // Admin hanya akan melihat Tabel Data.
-
-        // 2. Ambil Opsi Status untuk Dropdown Filter
+        // Ambil Opsi Status
         $statusOptions = ProspectStatus::select('status_code')
             ->distinct()
             ->orderBy('status_code')
             ->pluck('status_code');
 
-        // 3. Pagination & Formatting Data
+        // Pagination & Formatting
         $prospects = $query->orderByDesc('id')
             ->paginate(50)
-            ->withQueryString() // Penting: agar filter status tidak hilang saat pindah halaman
+            ->withQueryString()
             ->through(function ($item) {
                 return [
                     'id'             => $item->id,
                     'status'         => $item->status ? $item->status->status_code : 'UNKNOWN',
-                    
-                    // Score & Priority
                     'score'          => $item->latestScore ? $item->latestScore->score_value : null,
                     'priority'       => $item->latestScore ? $item->latestScore->priority : null,
-                    
                     'scored_at'      => $item->latestScore 
-                                        ? Carbon::parse($item->latestScore->created_at)->format('d M Y H:i') 
-                                        : null,
-
-                    // Data editable
+                                            ? Carbon::parse($item->latestScore->scored_at)->format('d M Y H:i') 
+                                            : null,
                     'age'            => $item->age,
                     'job'            => $item->job,
                     'education'      => $item->education,
@@ -70,11 +70,11 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Return tanpa variable 'stats'
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
-            'statusOptions' => $statusOptions,       
-            'filters'       => $request->only(['status']), 
+            'statusOptions' => $statusOptions,        
+            'filters'       => $request->only(['status']),
+            'stats'         => $stats, 
         ]);
     }
 
@@ -110,7 +110,7 @@ class DashboardController extends Controller
             Prospect::create($validated);
 
             DB::commit();
-            return back()->with('success', 'Data prospek berhasil ditambahkan secara manual.');
+            return back()->with('success', 'Data prospek berhasil ditambahkan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal menyimpan: ' . $e->getMessage());
@@ -141,9 +141,6 @@ class DashboardController extends Controller
         try {
             $prospect = Prospect::findOrFail($id);
             
-            $oldAssignee = $prospect->assigned_to; 
-            $newAssignee = $request->assigned_to ?? $oldAssignee;
-
             // Update
             $prospect->update($validated);
 
@@ -162,7 +159,7 @@ class DashboardController extends Controller
     }
     
     /**
-     * Fitur Hapus Satuan (Single Delete)
+     * Fitur Hapus Satuan
      */
     public function destroy($id)
     {
@@ -176,7 +173,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Hapus Batch (Selection vs All Filtered)
+     * Fitur Hapus Batch (Diperbarui)
      */
     public function bulkDestroy(Request $request)
     {
@@ -190,13 +187,18 @@ class DashboardController extends Controller
             $count = 0;
 
             if ($type === 'selection') {
+                // Menerima array ID (bisa banyak, dari berbagai halaman)
                 $ids = $request->input('ids', []);
-                if (empty($ids)) return back()->with('error', 'Tidak ada data yang dipilih.');
                 
-                Prospect::whereIn('id', $ids)->delete();
-                $count = count($ids);
+                if (!is_array($ids) || empty($ids)) {
+                    return back()->with('error', 'Tidak ada data valid yang dipilih.');
+                }
+                
+                // Hapus berdasarkan array ID
+                $count = Prospect::whereIn('id', $ids)->delete();
 
             } elseif ($type === 'all_filtered') {
+                // Hapus SEMUA berdasarkan filter (sangat berbahaya)
                 $statusFilter = $request->input('status');
                 
                 $query = Prospect::query();
@@ -231,8 +233,13 @@ class DashboardController extends Controller
             abort(403, 'Akses Ditolak.');
         }
 
+        // Validasi File
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt',
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+        ], [
+            'csv_file.required' => 'File CSV wajib diunggah.',
+            'csv_file.mimes'    => 'Format file harus CSV atau TXT.',
+            'csv_file.max'      => 'Ukuran file maksimal 10MB.',
         ]);
 
         try {
@@ -283,7 +290,7 @@ class DashboardController extends Controller
                 }
             }
 
-            if (empty($headerIndexes)) return back()->with('error', 'Format CSV tidak sesuai.');
+            if (empty($headerIndexes)) return back()->with('error', 'Header CSV tidak sesuai format.');
 
             $defaultStatus = ProspectStatus::firstOrCreate(
                 ['status_code' => 'NEW'],
@@ -324,16 +331,21 @@ class DashboardController extends Controller
             }
 
             DB::commit();
-            return back()->with('success', "Import selesai: {$imported} sukses, {$skipped} skip.");
+            
+            if ($imported > 0) {
+                return back()->with('success', "Import selesai: {$imported} data berhasil masuk.");
+            } else {
+                return back()->with('error', "Import gagal. Tidak ada data valid yang ditemukan.");
+            }
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal import: ' . $e->getMessage());
+            return back()->with('error', 'Gagal import sistem: ' . $e->getMessage());
         }
     }
 
     /**
-     * Fitur Run Predictions (Batch ke Python API)
+     * Fitur Run Predictions
      */
     public function runPredictions(Request $request)
     {
@@ -344,25 +356,18 @@ class DashboardController extends Controller
         ini_set('max_execution_time', 0); 
         set_time_limit(0); 
 
-        $featureColumns = [
-            'age', 'job', 'education', 'month', 'duration', 'campaign',
-            'poutcome', 'cons_price_idx', 'cons_conf_idx', 'euribor3m', 'nr_employed',
-        ];
-
         $totalProcessed = 0;
         $totalFailed    = 0;
 
-        $query = Prospect::whereDoesntHave('scores');
+        $query = Prospect::readyForPrediction()
+            ->whereDoesntHave('scores');
 
-        $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed, $featureColumns) {
+        // Chunking untuk memory efficiency
+        $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed) {
             
             $payload = [];
 
             foreach ($prospects as $prospect) {
-                foreach ($featureColumns as $col) {
-                    if (is_null($prospect->{$col})) continue 2; 
-                }
-
                 $payload[] = [
                     'id'             => $prospect->id, 
                     'age'            => (int) $prospect->age,
@@ -382,6 +387,7 @@ class DashboardController extends Controller
             if (empty($payload)) return;
 
             try {
+                // Pastikan URL Microservice Python Benar
                 $response = Http::timeout(300)->post('http://127.0.0.1:8001/predict_batch', [
                     'data' => $payload
                 ]);
@@ -423,7 +429,12 @@ class DashboardController extends Controller
             }
         });
 
-        return redirect()->route('dashboard')
-            ->with('success', "Proses selesai. {$totalProcessed} data berhasil diprediksi.");
+        if ($totalProcessed > 0) {
+            return redirect()->route('dashboard')
+                ->with('success', "Proses selesai. {$totalProcessed} data berhasil diprediksi.");
+        } else {
+            return redirect()->route('dashboard')
+                ->with('error', "Gagal memproses. Cek koneksi ke Service Python.");
+        }
     }
 }

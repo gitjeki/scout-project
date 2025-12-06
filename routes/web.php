@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PasswordResetRequestController; 
 use App\Http\Controllers\DashboardController; 
+use App\Http\Controllers\DataControlController; 
 use App\Http\Controllers\SalesController; 
 use Illuminate\Support\Facades\Route;
 
@@ -20,14 +21,19 @@ Route::get('/', function () {
 // --- GROUP ADMIN & SHARED ---
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // 1. Dashboard Utama Admin (Bisa diakses Sales juga jika perlu, tapi Sales punya dashboard sendiri di bawah)
+    // 1. Dashboard Utama Admin
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // 2. Action Admin (Import & Prediksi)
-    Route::post('/dashboard/import', [DashboardController::class, 'import'])->name('dashboard.import');
-    Route::post('/dashboard/predict', [DashboardController::class, 'runPredictions'])->name('dashboard.predict');
+    // 2. Data Control
+    Route::get('/data-control', [DataControlController::class, 'index'])->name('data-control.index');
 
-    // 3. CRUD Data Prospek (Admin)
+    // 3. Action Admin (Import & Prediksi)
+    Route::post('/dashboard/import', [DashboardController::class, 'import'])->name('dashboard.import');
+    
+    // [PENTING] Nama route ini disesuaikan agar tombol Prediksi di React berfungsi
+    Route::post('/dashboard/run-predictions', [DashboardController::class, 'runPredictions'])->name('dashboard.run-predictions');
+
+    // 4. CRUD Data Prospek
     Route::post('/dashboard/store', [DashboardController::class, 'store'])->name('dashboard.store');
     Route::put('/dashboard/{id}', [DashboardController::class, 'update'])->name('dashboard.update');
     
@@ -35,7 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/dashboard/{id}', [DashboardController::class, 'destroy'])->name('dashboard.destroy');
     Route::post('/dashboard/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('dashboard.bulk-destroy');
     
-    // Route resource untuk prospects (General destroy/bulk)
+    // Route resource untuk prospects (General)
     Route::delete('/prospects/{id}', [DashboardController::class, 'destroy'])->name('prospects.destroy');
     Route::post('/prospects/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('prospects.bulk-destroy');
 });
@@ -43,14 +49,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // --- GROUP KHUSUS SALES WORKSPACE ---
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // Halaman Utama Sales (Dashboard + Table jadi satu)
+    // Halaman Utama Sales
     Route::get('/sales/prospects', [SalesController::class, 'index'])->name('sales.prospects.index');
     
     // Action Update & Log Activity
     Route::put('/sales/prospects/{id}', [SalesController::class, 'update'])->name('sales.prospects.update');
     Route::post('/sales/activity', [SalesController::class, 'logActivity'])->name('sales.activity.log');
-
-
 });
 
 // --- GROUP PROFILE & USER MANAGEMENT (ADMIN TOOLS) ---
@@ -66,13 +70,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'reset'])->name('admin.reset.action');
     Route::delete('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'destroy'])->name('admin.reset.destroy');
 
-    // RUTE DARURAT (Hapus nanti di production)
+    // RUTE DARURAT
     Route::get('/emergency-login', function () {
         $user = \App\Models\User::where('email', 'admin@bank.com')->first();
         if (!$user) return 'User Admin tidak ditemukan di database!';
 
         \Illuminate\Support\Facades\Auth::login($user);
-        return redirect('/dashboard');
+        return redirect()->route('dashboard'); 
     });
 });
 

@@ -1,50 +1,32 @@
 import SidebarLayout from '@/Layouts/SidebarLayout';
 import { Head, usePage, useForm, Link, router } from '@inertiajs/react';
 import { 
-    FaUsers, FaChartLine, FaRobot, FaCloudUploadAlt, 
+    FaChartLine, FaRobot, FaCloudUploadAlt, 
     FaCheckCircle, FaExclamationCircle, FaSave, FaEdit, FaTimes, FaPlus,
     FaTrash, FaFilter, FaSpinner,
-    FaFire, FaCalendarCheck, FaClock, FaChartPie, FaUser
+    FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
-// --- COMPONENTS HELPER (Dipindahkan dari Sales) ---
-const StatusCard = ({ stat }) => {
-    const bgColors = {
-        blue: 'bg-blue-50 border-blue-200 text-blue-800',
-        purple: 'bg-purple-50 border-purple-200 text-purple-800',
-        green: 'bg-green-50 border-green-200 text-green-800',
-        red: 'bg-red-50 border-red-200 text-red-800',
-        orange: 'bg-orange-50 border-orange-200 text-orange-800',
-        gray: 'bg-gray-50 border-gray-200 text-gray-800',
-    };
-    const activeClass = bgColors[stat.color] || bgColors.gray;
-    return (
-        <div className={`p-3 rounded-lg border shadow-sm ${activeClass} flex flex-col justify-between`}>
-            <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">{stat.code.replace('_', ' ')}</p>
-                <h4 className="text-2xl font-extrabold">{stat.count}</h4>
-            </div>
-            <p className="text-[10px] mt-1 opacity-80 truncate" title={stat.desc}>{stat.desc}</p>
-        </div>
-    );
-};
+// --- COMPONENTS HELPER ---
 
 const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
     let colors = {
         red: { bg: 'bg-red-50', text: 'text-red-700', icon: 'text-red-500' },
         blue: { bg: 'bg-blue-50', text: 'text-blue-700', icon: 'text-blue-500' },
         green: { bg: 'bg-green-50', text: 'text-green-700', icon: 'text-green-500' },
+        purple: { bg: 'bg-purple-50', text: 'text-purple-700', icon: 'text-purple-500' },
+        orange: { bg: 'bg-orange-50', text: 'text-orange-700', icon: 'text-orange-500' },
     }[color] || { bg: 'bg-gray-50', text: 'text-gray-700', icon: 'text-gray-500' };
 
     return (
         <div className={`p-4 rounded-xl shadow-sm border border-gray-200 ${colors.bg}`}>
             <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-gray-600">{title}</p>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{title}</p>
                 <div className={`p-2 rounded-full bg-white shadow-sm ${colors.icon}`}><Icon size={14} /></div>
             </div>
-            <div className="mt-2">
-                <span className={`text-2xl font-extrabold ${colors.text}`}>{value}</span>
+            <div className="mt-3">
+                <span className={`text-3xl font-extrabold ${colors.text}`}>{value}</span>
                 <span className="text-xs ml-1 font-medium text-gray-500">{unit}</span>
             </div>
             <p className="text-[10px] mt-1 text-gray-500 truncate">{description}</p>
@@ -52,28 +34,112 @@ const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
     );
 };
 
-// --- KOMPONEN LOADING SCREEN ---
-const LoadingOverlay = ({ isVisible }) => {
+// --- KOMPONEN NOTIFIKASI MELAYANG ---
+const FloatingToast = ({ flash, errors }) => {
+    const [show, setShow] = useState(false);
+    const [msg, setMsg] = useState({ type: '', text: '' });
+
+    useEffect(() => {
+        if (flash.success) {
+            setMsg({ type: 'success', text: flash.success });
+            setShow(true);
+        } else if (flash.error) {
+            setMsg({ type: 'error', text: flash.error });
+            setShow(true);
+        } else if (errors && Object.keys(errors).length > 0) {
+            const firstErrorKey = Object.keys(errors)[0];
+            setMsg({ type: 'error', text: errors[firstErrorKey] });
+            setShow(true);
+        } else {
+            setShow(false);
+        }
+        const timer = setTimeout(() => setShow(false), 5000);
+        return () => clearTimeout(timer);
+    }, [flash, errors]);
+
+    if (!show) return null;
+    const styles = msg.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white';
+    const icon = msg.type === 'success' ? <FaCheckCircle className="text-xl" /> : <FaExclamationCircle className="text-xl" />;
+
+    return (
+        <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${styles}`}>
+            {icon}
+            <div>
+                <h4 className="font-bold text-sm uppercase">{msg.type === 'success' ? 'Berhasil' : 'Gagal'}</h4>
+                <p className="text-sm font-medium">{msg.text}</p>
+            </div>
+            <button onClick={() => setShow(false)} className="ml-4 text-white hover:text-gray-200"><FaTimes /></button>
+        </div>
+    );
+};
+
+// --- LOADING OVERLAY ---
+const LoadingOverlay = ({ isVisible, mode = 'predict' }) => {
     if (!isVisible) return null;
+    const config = {
+        predict: { icon: <FaRobot className="text-6xl text-orange-500 mb-4 animate-pulse" />, title: "AI Sedang Bekerja...", subtitle: "Menganalisis probabilitas data prospek." },
+        import: { icon: <FaCloudUploadAlt className="text-6xl text-blue-500 mb-4 animate-bounce" />, title: "Mengimport Data...", subtitle: "Mohon tunggu, sedang memasukkan data ke database." },
+        delete: { icon: <FaTrash className="text-6xl text-red-500 mb-4 animate-pulse" />, title: "Menghapus Data...", subtitle: "Mohon tunggu, sedang membersihkan database." }
+    };
+    const current = config[mode] || config.predict;
     return (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm transition-opacity">
-            <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-bounce-slow">
-                <FaRobot className="text-6xl text-orange-500 mb-4 animate-pulse" />
-                <FaSpinner className="text-4xl text-blue-600 animate-spin mb-2" />
-                <h2 className="text-xl font-bold text-gray-800">AI Sedang Bekerja...</h2>
-                <p className="text-gray-500 text-sm mt-2">Menganalisis probabilitas data prospek.</p>
+            <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-bounce-slow min-w-[300px]">
+                {current.icon}
+                <FaSpinner className="text-4xl text-gray-400 animate-spin mb-2" />
+                <h2 className="text-xl font-bold text-gray-800">{current.title}</h2>
+                <p className="text-gray-500 text-sm mt-2 text-center">{current.subtitle}</p>
             </div>
         </div>
     );
 };
 
-// --- KONSTANTA PILIHAN ---
+// --- MODAL KONFIRMASI HAPUS (POP UP) ---
+const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, type, count, statusName }) => {
+    if (!isOpen) return null;
+
+    let title = "Konfirmasi Hapus";
+    let message = "";
+    
+    if (type === 'single') {
+        message = "Apakah Anda yakin ingin menghapus data prospek ini secara permanen?";
+    } else if (type === 'selection') {
+        message = `Anda akan menghapus ${count} data prospek yang telah dipilih. Data yang dihapus tidak dapat dikembalikan.`;
+    } else if (type === 'all_filtered') {
+        title = "PERINGATAN BAHAYA!";
+        message = `Anda akan menghapus SEMUA data dengan status "${statusName || 'Semua'}" di SELURUH HALAMAN (Total Database). Tindakan ini tidak dapat dibatalkan!`;
+    }
+
+    return (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100 animate-in fade-in zoom-in duration-200">
+                <div className="flex flex-col items-center text-center">
+                    <div className="bg-red-100 p-4 rounded-full mb-4">
+                        <FaExclamationTriangle className="text-3xl text-red-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
+                    <p className="text-gray-500 text-sm mb-6 leading-relaxed">{message}</p>
+                    
+                    <div className="flex gap-3 w-full">
+                        <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors">
+                            Batal
+                        </button>
+                        <button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                            <FaTrash size={14} /> Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- CONSTANTS & FORM COMPONENTS ---
 const OPT_JOBS = ['admin.', 'services', 'management', 'blue-collar', 'entrepreneur', 'student', 'technician', 'housemaid', 'self-employed', 'unemployed', 'retired'];
 const OPT_EDUCATION = ['basic.4y', 'basic.6y', 'basic.9y', 'high.school', 'professional.course', 'university.degree', 'illiterate', 'unknown'];
 const OPT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const OPT_POUTCOME = ['nonexistent', 'failure', 'success'];
 
-// --- SUB-KOMPONEN UI ---
 const InputGroup = ({ label, type = "text", placeholder, value, onChange, error }) => (
     <div className="flex flex-col">
         <label className="text-xs font-bold text-gray-600 mb-1 capitalize">{label}</label>
@@ -138,7 +204,7 @@ const CreateProspectModal = ({ isOpen, onClose }) => {
 };
 
 // --- KOMPONEN BARIS (ROW) ---
-const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) => {
+const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteRequest }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [values, setValues] = useState({ ...item });
 
@@ -189,7 +255,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
                     <div className="flex justify-center items-center gap-1">
                         <button onClick={() => setIsEditing(true)} className="text-blue-500 p-1.5 hover:bg-blue-100 rounded" title="Edit"><FaEdit /></button>
                         {isAdmin && (
-                            <button onClick={() => onDelete(item.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded" title="Hapus"><FaTrash size={12}/></button>
+                            <button onClick={() => onDeleteRequest(item.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded" title="Hapus"><FaTrash size={12}/></button>
                         )}
                     </div>
                 )}
@@ -219,18 +285,23 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
     );
 };
 
-// --- MAIN PAGE (REVISI) ---
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, dailyStats, statusStats }) {
-    const { auth, flash } = usePage().props;
+// --- MAIN PAGE ---
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {} }) {
+    const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     
-    // STATES FOR FILTER & BATCH DELETE
+    // STATES FOR FILTER & SELECTION
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
     const [selectedIds, setSelectedIds] = useState([]);
+    
+    // STATE FOR DELETE MODAL
+    const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, type: '', targetId: null });
+    const [isDeleting, setIsDeleting] = useState(false); // State untuk loading saat hapus
 
-    // Reset selection on page change or filter change
-    useEffect(() => { setSelectedIds([]); }, [prospects.current_page, filterStatus]);
+    // RESET SELECTION: Hanya reset jika Filter berubah (Konteks data berubah total)
+    // Kita MENGHAPUS dependency [prospects.current_page] agar seleksi bertahan saat pindah halaman
+    useEffect(() => { setSelectedIds([]); }, [filterStatus]);
     
     // Logic Filter
     const handleFilterChange = (e) => {
@@ -239,19 +310,20 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), { status: val }, { preserveState: true, replace: true });
     };
 
-    // Logic Delete Single
-    const handleDeleteSingle = (id) => {
-        if(confirm('Yakin ingin menghapus data ini secara permanen?')) {
-            router.delete(route('dashboard.destroy', id));
-        }
-    };
+    // --- LOGIKA SELEKSI HALAMAN ---
+    // Cek apakah semua data di halaman ini sudah terpilih
+    const currentPageIds = prospects.data.map(p => p.id);
+    const isAllCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.includes(id));
 
-    // Logic Select All (Page)
-    const handleSelectAll = (e) => {
+    const handleSelectAllCurrentPage = (e) => {
         if (e.target.checked) {
-            setSelectedIds(prospects.data.map(p => p.id));
+            // Tambahkan ID halaman ini ke selectedIds (hindari duplikat)
+            const newSelection = [...new Set([...selectedIds, ...currentPageIds])];
+            setSelectedIds(newSelection);
         } else {
-            setSelectedIds([]);
+            // Hapus ID halaman ini dari selectedIds (biarkan ID halaman lain tetap ada)
+            const newSelection = selectedIds.filter(id => !currentPageIds.includes(id));
+            setSelectedIds(newSelection);
         }
     };
 
@@ -261,70 +333,109 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         else setSelectedIds([...selectedIds, id]);
     };
 
-    // Logic Batch Delete
-    const handleBatchDelete = (type) => {
-        let msg = '';
-        if (type === 'selection') msg = `Yakin hapus ${selectedIds.length} data terpilih di HALAMAN INI saja?`;
-        else msg = `PERINGATAN BAHAYA!\n\nAnda akan menghapus SEMUA data dengan status "${filterStatus || 'Semua'}" di SELURUH HALAMAN.\n\nLanjutkan?`;
+    // --- LOGIKA TRIGGER DELETE (MEMBUKA MODAL) ---
+    const requestDeleteSingle = (id) => {
+        setDeleteModalState({ isOpen: true, type: 'single', targetId: id });
+    };
 
-        if (confirm(msg)) {
+    const requestDeleteSelection = () => {
+        setDeleteModalState({ isOpen: true, type: 'selection', count: selectedIds.length });
+    };
+
+    const requestDeleteAllFiltered = () => {
+        setDeleteModalState({ isOpen: true, type: 'all_filtered', statusName: filterStatus });
+    };
+
+    // --- EKSEKUSI DELETE SETELAH KONFIRMASI ---
+    const confirmDelete = () => {
+        const { type, targetId } = deleteModalState;
+        setIsDeleting(true);
+
+        if (type === 'single') {
+            router.delete(route('dashboard.destroy', targetId), {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsDeleting(false);
+                    setDeleteModalState({ isOpen: false, type: '', targetId: null });
+                    // Hapus ID dari seleksi jika kebetulan sedang terpilih
+                    setSelectedIds(prev => prev.filter(id => id !== targetId));
+                }
+            });
+        } else if (type === 'selection' || type === 'all_filtered') {
             router.post(route('dashboard.bulk-destroy'), {
                 type: type,
-                ids: selectedIds,
+                ids: selectedIds, // Kirim semua ID terpilih (bisa lintas halaman)
                 status: filterStatus
+            }, {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsDeleting(false);
+                    setDeleteModalState({ isOpen: false, type: '', targetId: null });
+                    if(type === 'selection') setSelectedIds([]); // Reset selection setelah hapus batch
+                }
             });
         }
     };
 
-    // Forms
-    const { data: dataImport, setData: setDataImport, post: postImport, processing: processingImport, reset: resetImport } = useForm({ csv_file: null });
+    // Forms Import & Predict
+    const { data: dataImport, setData: setDataImport, post: postImport, processing: processingImport, reset: resetImport, errors: errorsImport } = useForm({ csv_file: null });
     const { post: postPredict, processing: processingPredict } = useForm({});
     
-    const submitImport = (e) => { e.preventDefault(); postImport(route('dashboard.import'), { onSuccess: () => { resetImport(); document.getElementById('file-upload').value = ''; } }); };
+    const submitImport = (e) => { 
+        e.preventDefault(); 
+        postImport(route('dashboard.import'), { 
+            forceFormData: true, 
+            preserveScroll: true,
+            onSuccess: () => { 
+                resetImport(); 
+                const fileInput = document.getElementById('file-upload');
+                if(fileInput) fileInput.value = ''; 
+            }
+        }); 
+    };
     
-    // Submit Prediksi
     const submitPredict = (e) => { 
         e.preventDefault(); 
-        postPredict(route('dashboard.predict')); 
+        postPredict(route('dashboard.run-predictions'), { preserveScroll: true }); 
     };
 
-    // Zoom
+    // Zoom Handling
     useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
-
-    // Definisikan default untuk mencegah error jika data belum ada
-    const safeDailyStats = dailyStats || { hot_leads: 0, calls_today: 0, duration_min: 0 };
-    const safeStatusStats = statusStats || [];
 
     return (
         <SidebarLayout header="Sales Analysis Dashboard">
             <Head title="Dashboard" />
             
-            <LoadingOverlay isVisible={processingPredict} />
+            <FloatingToast flash={flash} errors={errors} />
+
+            {/* LOADING OVERLAY GENERAL */}
+            <LoadingOverlay 
+                isVisible={processingPredict || processingImport || isDeleting} 
+                mode={isDeleting ? 'delete' : (processingImport ? 'import' : 'predict')} 
+            />
+
+            {/* MODALS */}
             <CreateProspectModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
+            
+            <DeleteConfirmModal 
+                isOpen={deleteModalState.isOpen} 
+                onClose={() => setDeleteModalState({ ...deleteModalState, isOpen: false })} 
+                onConfirm={confirmDelete}
+                type={deleteModalState.type}
+                count={deleteModalState.count}
+                statusName={deleteModalState.statusName}
+            />
 
-            {/* Flash Messages */}
-            {(flash.success || flash.error) && (
-                <div className={`mb-6 border px-4 py-3 rounded relative flex items-center text-sm ${flash.success ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'}`}>
-                    {flash.success ? <FaCheckCircle /> : <FaExclamationCircle />} <span className="ml-2">{flash.success || flash.error}</span>
-                </div>
-            )}
-
-            {/* --- NEW STATS CARDS SECTION (Dipindah dari Sales) --- */}
+            {/* --- DATA SUMMARY CARDS --- */}
             <div className="mb-8">
-                 {/* BAGIAN 1: GLOBAL STATS */}
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaChartLine/> Global Sales Performance</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                    <StatsCard icon={FaFire} color="red" title="Global Hot Leads" value={safeDailyStats.hot_leads} unit="Prospects" description="Total High Priority & New Status" />
-                    <StatsCard icon={FaCalendarCheck} color="blue" title="Global Activity Today" value={safeDailyStats.calls_today} unit="Calls" description="Total calls by all sales today" />
-                    <StatsCard icon={FaClock} color="green" title="Global Talk Duration" value={safeDailyStats.duration_min} unit="Mins" description="Total duration today" />
-                </div>
-
-                 {/* BAGIAN 2: PIPELINE OVERVIEW */}
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaChartPie/> Global Pipeline Overview</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
-                    {safeStatusStats.map((stat) => (
-                        <StatusCard key={stat.code} stat={stat} />
-                    ))}
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <FaChartPie/> Data Summary
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatsCard icon={FaDatabase} color="blue" title="Total Data Input" value={stats.total_input} unit="Row" description="Gabungan Manual & Import" />
+                    <StatsCard icon={FaCalendarDay} color="green" title="Input Hari Ini" value={stats.today_input} unit="Row" description="Data baru masuk hari ini" />
+                    <StatsCard icon={FaRobot} color="purple" title="Total Diprediksi" value={stats.total_predicted} unit="Row" description="Total data selesai diproses AI" />
+                    <StatsCard icon={FaChartLine} color="orange" title="Prediksi Hari Ini" value={stats.today_predicted} unit="Row" description="Hasil prediksi AI hari ini" />
                 </div>
             </div>
 
@@ -343,13 +454,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                     {/* Batch Actions Section */}
                     <div className="flex gap-2 w-full md:w-auto justify-end">
+                        {/* Tombol Hapus Terpilih Selalu Muncul Jika Ada Seleksi */}
                         {selectedIds.length > 0 && (
-                            <button onClick={() => handleBatchDelete('selection')} className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition">
-                                <FaTrash /> Hapus {selectedIds.length} Terpilih (Page Ini)
+                            <button onClick={requestDeleteSelection} className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition animate-fade-in">
+                                <FaTrash /> Hapus {selectedIds.length} Terpilih
                             </button>
                         )}
-                        <button onClick={() => handleBatchDelete('all_filtered')} className="flex items-center gap-2 px-3 py-2 bg-gray-800 text-white rounded text-xs font-bold hover:bg-gray-900 transition">
-                            <FaExclamationCircle /> Hapus Semua {filterStatus ? `(${filterStatus})` : 'Data'}
+                        
+                        <button onClick={requestDeleteAllFiltered} className="flex items-center gap-2 px-3 py-2 bg-gray-800 text-white rounded text-xs font-bold hover:bg-gray-900 transition">
+                            <FaExclamationTriangle /> Hapus Semua {filterStatus ? `(${filterStatus})` : 'Data'}
                         </button>
                     </div>
                 </div>
@@ -363,11 +476,17 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             {/* Import & Predict Buttons */}
                             <div className="flex flex-col md:flex-row gap-2 w-full justify-end">
                                 <button onClick={() => setCreateModalOpen(true)} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 justify-center"><FaPlus /> Manual</button>
+                                
                                 <form onSubmit={submitImport} className="flex gap-2 items-center">
-                                    <input id="file-upload" type="file" onChange={e => setDataImport('csv_file', e.target.files[0])} accept=".csv" className="block w-full text-xs text-slate-500 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                                    <button type="submit" disabled={processingImport || !dataImport.csv_file} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50"><FaCloudUploadAlt /> Import</button>
+                                    <div className="relative">
+                                        <input id="file-upload" type="file" onChange={e => setDataImport('csv_file', e.target.files[0])} accept=".csv" className="block w-full text-xs text-slate-500 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                                        {errorsImport.csv_file && <div className="absolute top-full left-0 text-[10px] text-red-600 font-bold mt-1 whitespace-nowrap">{errorsImport.csv_file}</div>}
+                                    </div>
+                                    <button type="submit" disabled={processingImport || !dataImport.csv_file} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50">
+                                        <FaCloudUploadAlt /> Import
+                                    </button>
                                 </form>
-                                {/* Tombol Prediksi */}
+
                                 <form onSubmit={submitPredict}>
                                     <button type="submit" disabled={processingPredict} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50 justify-center">
                                         <FaRobot /> {processingPredict ? 'Memproses...' : 'Prediksi'}
@@ -381,9 +500,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                         <table className="min-w-full whitespace-nowrap text-sm text-left">
                             <thead className="bg-gray-100 text-gray-600 uppercase text-xs font-bold tracking-wider border-b border-gray-200">
                                 <tr>
-                                    {/* Checkbox All */}
+                                    {/* Checkbox All (Page Context) */}
                                     <th className="px-4 py-3 text-center sticky left-0 bg-gray-100 z-20 border-r border-gray-100 w-10">
-                                        <input type="checkbox" onChange={handleSelectAll} checked={prospects.data.length > 0 && selectedIds.length === prospects.data.length} className="rounded text-blue-600 focus:ring-blue-500" />
+                                        <input 
+                                            type="checkbox" 
+                                            onChange={handleSelectAllCurrentPage} 
+                                            checked={isAllCurrentPageSelected} 
+                                            className="rounded text-blue-600 focus:ring-blue-500" 
+                                            title="Pilih semua di halaman ini"
+                                        />
                                     </th>
                                     <th className="px-4 py-3 text-center sticky left-10 bg-gray-100 z-20 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-24">Action</th>
                                     <th className="px-4 py-3">ID</th>
@@ -413,7 +538,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                             isAdmin={isAdmin}
                                             isSelected={selectedIds.includes(item.id)}
                                             onToggleSelect={handleSelectRow}
-                                            onDelete={handleDeleteSingle}
+                                            onDeleteRequest={requestDeleteSingle}
                                         />
                                     ))
                                 ) : (
@@ -424,7 +549,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                     </div>
 
                     <div className="px-6 py-4 border-t border-gray-200 flex flex-wrap justify-between items-center bg-gray-50">
-                        <span className="text-xs text-gray-500">Page {prospects.current_page} of {prospects.last_page}</span>
+                        <span className="text-xs text-gray-500">
+                            Page {prospects.current_page} of {prospects.last_page} | 
+                            <span className="ml-2 font-bold text-blue-600">Total Terpilih: {selectedIds.length}</span>
+                        </span>
                         <div className="flex gap-1">
                             {prospects.links.map((link, key) => (
                                 <Link key={key} href={link.url || '#'} preserveState={true} dangerouslySetInnerHTML={{ __html: link.label }} className={`px-3 py-1 text-xs border rounded transition shadow-sm ${link.active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'} ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`} />

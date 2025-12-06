@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaKey, FaSignOutAlt, 
-    FaTasks, FaAngleDown, FaUserTag 
+    FaTasks, FaAngleDown, FaUserTag, FaExclamationTriangle 
 } from 'react-icons/fa';
 import Dropdown from '@/Components/Dropdown';
 
@@ -14,7 +14,11 @@ export default function SidebarLayout({ children, header }) {
     // Pastikan nama 'route' di sini SAMA PERSIS dengan ->name('...') di web.php
     const adminMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
-        // Pastikan route 'users.index' ada di web.php, jika belum ada, ganti ke 'dashboard' sementara
+        
+        // --- MENU BARU: DATA CONTROL ---
+        { name: 'Data Control', route: 'data-control.index', icon: <FaExclamationTriangle /> },
+        
+        // Pastikan route 'users.index' ada di web.php
         { name: 'Pengelolaan Akun', route: 'users.index', icon: <FaUsers /> },
         // Pastikan route 'admin.reset.index' ada di web.php
         { name: 'Reset Password', route: 'admin.reset.index', icon: <FaKey /> },
@@ -22,7 +26,7 @@ export default function SidebarLayout({ children, header }) {
 
     const salesMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
-        // INI YANG DIPERBAIKI: Mengarah ke tabel khusus sales
+        // Mengarah ke tabel khusus sales
         { name: 'Daftar Prospek', route: 'sales.prospects.index', icon: <FaTasks /> },
     ];
 
