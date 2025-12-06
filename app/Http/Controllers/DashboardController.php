@@ -127,9 +127,17 @@ class DashboardController extends Controller
         $query = Prospect::with(['status', 'latestScore'])
             ->readyForPrediction(); 
 
+        // Filter Status
         if ($request->has('status') && $request->status != '') {
             $query->whereHas('status', function($q) use ($request) {
                 $q->where('status_code', $request->status);
+            });
+        }
+
+        // Filter Priority (BARU)
+        if ($request->has('priority') && $request->priority != '') {
+            $query->whereHas('latestScore', function($q) use ($request) {
+                $q->where('priority', $request->priority);
             });
         }
 
@@ -188,11 +196,10 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            'filters'       => $request->only(['status', 'sort_field', 'sort_direction']),
+            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction']), // Update filters
             'stats'         => $stats,
             'personalStats' => $personalStats, 
             'pipelineStats' => $pipelineStats,
-            // Kirim data template konfigurasi ke Frontend
             'formTemplate'  => $formTemplate 
         ]);
     }

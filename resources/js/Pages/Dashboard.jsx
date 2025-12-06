@@ -11,6 +11,8 @@ import {
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
+// --- COMPONENTS ---
+
 const PerformanceCard = ({ title, value, unit, subtext, icon: Icon, theme }) => {
     const themes = {
         red: { 
@@ -325,7 +327,9 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
 
 const InputGroup = ({ label, type = "text", placeholder, value, onChange, error }) => (
     <div className="flex flex-col">
-        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize">{label}</label>
+        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize">
+            {label} <span className="text-red-500">*</span>
+        </label>
         <input 
             type={type} 
             value={value} 
@@ -339,7 +343,9 @@ const InputGroup = ({ label, type = "text", placeholder, value, onChange, error 
 
 const SelectGroup = ({ label, options, value, onChange, error }) => (
     <div className="flex flex-col">
-        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize">{label}</label>
+        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize">
+            {label} <span className="text-red-500">*</span>
+        </label>
         <select 
             value={value} 
             onChange={onChange} 
@@ -364,7 +370,7 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
         education: dropdowns.education[0] || '', 
         month: 'may', 
         duration: '',
-        campaign: defaults.campaign || '', // Set default empty instead of 1
+        campaign: defaults.campaign || '',
         poutcome: 'nonexistent', 
         cons_price_idx: defaults.cons_price_idx || '', 
         cons_conf_idx: defaults.cons_conf_idx || '', 
@@ -380,7 +386,7 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
                 education: dropdowns.education[0] || '', 
                 month: 'may', 
                 duration: '',
-                campaign: defaults.campaign || '', // Reset to empty if needed
+                campaign: defaults.campaign || '',
                 poutcome: 'nonexistent', 
                 cons_price_idx: defaults.cons_price_idx || '', 
                 cons_conf_idx: defaults.cons_conf_idx || '', 
@@ -525,6 +531,8 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
     );
 };
 
+// --- MAIN PAGE COMPONENT ---
+
 export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, pipelineStats, formTemplate }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
@@ -533,7 +541,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [isConfigModalOpen, setConfigModalOpen] = useState(false); 
     
+    // 1. Tambahkan State Priority
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
+    const [filterPriority, setFilterPriority] = useState(filters.priority || '');
+
     const [sortField, setSortField] = useState(filters.sort_field || 'id');
     const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
     const [selectedIds, setSelectedIds] = useState([]);
@@ -541,13 +552,22 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, type: '', targetId: null });
     const [isDeleting, setIsDeleting] = useState(false); 
 
-    useEffect(() => { setSelectedIds([]); }, [filterStatus, sortField, sortDirection]);
+    // 2. Update useEffect agar reset saat filter berubah
+    useEffect(() => { 
+        setSelectedIds([]); 
+    }, [filterStatus, filterPriority, sortField, sortDirection, prospects.current_page]);
     
-    const handleFilterChange = (e) => {
-        const val = e.target.value;
-        setFilterStatus(val);
+    // 3. Modifikasi Handle Filter Change untuk menangani Status & Priority
+    const handleFilterChange = (key, value) => {
+        const newStatus = key === 'status' ? value : filterStatus;
+        const newPriority = key === 'priority' ? value : filterPriority;
+
+        if (key === 'status') setFilterStatus(value);
+        if (key === 'priority') setFilterPriority(value);
+
         router.get(route('dashboard'), { 
-            status: val, 
+            status: newStatus, 
+            priority: newPriority,
             sort_field: sortField, 
             sort_direction: sortDirection 
         }, { preserveState: true, replace: true });
@@ -563,6 +583,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
         router.get(route('dashboard'), {
             status: filterStatus,
+            priority: filterPriority,
             sort_field: field,
             sort_direction: newDirection
         }, { preserveState: true });
@@ -656,7 +677,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         postPredict(route('dashboard.run-predictions'), { preserveScroll: true }); 
     };
 
-    // Force zoom level on mount, reset on unmount to avoid affecting other pages
+    // Force zoom level on mount, reset on unmount
     useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
 
     return (
@@ -770,23 +791,50 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             {isAdmin && (
                 <>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <FaFilter className="text-gray-400" />
-                        <select value={filterStatus} onChange={handleFilterChange} className="border-gray-300 rounded text-sm w-full md:w-64">
-                            <option value="">Semua Status</option>
-                            {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
+                    
+                    {/* 4. Update Filter UI */}
+                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaFilter className="text-gray-400" />
+                            <select 
+                                value={filterStatus} 
+                                onChange={(e) => handleFilterChange('status', e.target.value)} 
+                                className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="">Semua Status</option>
+                                {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaFire className="text-gray-400" />
+                            <select 
+                                value={filterPriority} 
+                                onChange={(e) => handleFilterChange('priority', e.target.value)} 
+                                className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="">Semua Priority</option>
+                                <option value="1">High (1)</option>
+                                <option value="2">Medium (2)</option>
+                                <option value="3">Low (3)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                        {selectedIds.length > 0 && (
-                            <button onClick={requestDeleteSelection} className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition animate-fade-in">
-                                <FaTrash /> Hapus {selectedIds.length} Terpilih
-                            </button>
-                        )}
+                        <button 
+                            onClick={requestDeleteSelection} 
+                            disabled={selectedIds.length === 0}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-bold transition
+                                ${selectedIds.length > 0 
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-200 animate-fade-in' 
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                }`}
+                        >
+                            <FaTrash /> Hapus {selectedIds.length > 0 ? `${selectedIds.length} Terpilih` : 'Terpilih'}
+                        </button>
                         
                         <button onClick={requestDeleteAllFiltered} className="flex items-center gap-2 px-3 py-2 bg-gray-800 text-white rounded text-xs font-bold hover:bg-gray-900 transition">
-                            <FaExclamationTriangle /> Hapus Semua {filterStatus ? `(${filterStatus})` : 'Data'}
+                            <FaExclamationTriangle /> Hapus Semua {filterStatus || filterPriority ? '(Filtered)' : 'Data'}
                         </button>
                     </div>
                 </div>

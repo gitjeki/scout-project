@@ -30,7 +30,6 @@ class DataControlController extends Controller
                 return [
                     'id'             => $item->id,
                     'status'         => $item->status ? $item->status->status_code : 'UNKNOWN',
-                    // Kita kirim data raw agar bisa diedit
                     'age'            => $item->age,
                     'job'            => $item->job,
                     'education'      => $item->education,
