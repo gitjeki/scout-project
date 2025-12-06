@@ -349,13 +349,17 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
             <td className="px-4 py-3">{renderCell('education', 'text', 'w-36', dropdowns.education)}</td>
             <td className="px-4 py-3 uppercase">{renderCell('month', 'text', 'w-20', OPT_MONTHS)}</td>
             <td className="px-4 py-3">{renderCell('duration', 'number', 'w-20')}</td>
-            <td className="px-4 py-3 text-center">{renderCell('campaign', 'number', 'w-16')}</td>
-            <td className="px-4 py-3">{renderCell('poutcome', 'text', 'w-28', OPT_POUTCOME)}</td>
+            <td className="px-4 py-3">{renderCell('campaign', 'number', 'w-16')}</td>
+            <td className="px-4 py-3">{renderCell('poutcome', 'text', 'w-20', OPT_POUTCOME)}</td>
+            
             <td className="px-4 py-3">{renderCell('cons_price_idx', 'number', 'w-20')}</td>
             <td className="px-4 py-3">{renderCell('cons_conf_idx', 'number', 'w-20')}</td>
             <td className="px-4 py-3">{renderCell('euribor3m', 'number', 'w-20')}</td>
             <td className="px-4 py-3">{renderCell('nr_employed', 'number', 'w-20')}</td>
             <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{item.scored_at || '-'}</td>
+            
+            {/* UPDATE: Kolom Baru Scored By */}
+            <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{item.scored_by || '-'}</td>
         </tr>
     );
 };
@@ -714,6 +718,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                     <th className="px-4 py-3">Euribor3m</th>
                                     <th className="px-4 py-3">N.Employed</th>
                                     <th className="px-4 py-3 text-right">Scored At</th>
+                                    
+                                    {/* UPDATE: Header Baru Scored By */}
+                                    <th className="px-4 py-3">Scored By</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
@@ -730,7 +737,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                         />
                                     ))
                                 ) : (
-                                    <tr><td colSpan="18" className="px-6 py-10 text-center text-gray-500">Data kosong.</td></tr>
+                                    <tr><td colSpan="20" className="px-6 py-10 text-center text-gray-500">Data kosong.</td></tr>
                                 )}
                             </tbody>
                         </table>

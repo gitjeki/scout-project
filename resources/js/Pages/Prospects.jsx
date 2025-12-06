@@ -121,11 +121,11 @@
                 <td className="px-4 py-3"><span className={`status-badge status-${item.status_code.toLowerCase()}`}>{item.status_code}</span></td>
                 <td className="px-4 py-3"><div className="text-xs text-gray-600 max-w-[150px] truncate">{item.description || '-'}</div></td>
                 <td className="px-4 py-3">
-                    {item.priority === 1 && <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">HIGH</span>}
+                    {item.priority === 1 && <span className="bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">HIGH</span>}
                     {item.priority === 2 && <span className="bg-yellow-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">MED</span>}
                     {item.priority === 3 && <span className="bg-gray-400 text-white px-2 py-0.5 rounded text-[10px] font-bold">LOW</span>}
                 </td>
-                <td className="px-4 py-3 font-bold text-blue-600">{item.score ? (item.score * 100).toFixed(0) + '%' : '-'}</td>
+                <td className="px-4 py-3 font-bold text-blue-600">{item.score ? (item.score * 100).toFixed(3) + '%' : '-'}</td>
                 <td className="px-4 py-3 text-xs">{item.job || '-'}</td>
                 <td className="px-4 py-3 text-xs font-medium text-gray-700">{item.age} Th</td>
                 <td className="px-4 py-3 text-xs">{item.telemarketer_name !== '-' ? item.telemarketer_name : '-'}</td>

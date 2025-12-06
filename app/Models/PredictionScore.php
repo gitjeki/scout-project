@@ -11,7 +11,7 @@ class PredictionScore extends Model
 
     protected $table = 'prediction_scores';
 
-    public $timestamps = false; // di migration cuma ada scored_at
+    public $timestamps = false; 
 
     protected $fillable = [
         'prospect_id',
@@ -32,6 +32,16 @@ class PredictionScore extends Model
         return $this->belongsTo(Prospect::class, 'prospect_id');
     }
 
+    /**
+     * Relasi ke User (Digunakan di DashboardController)
+     * Kita namakan 'user' agar sesuai dengan with('latestScore.user')
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'scored_by_user_id');
+    }
+
+    // (Opsional) Jika Anda masih ingin mempertahankan nama scoredBy untuk keperluan lain
     public function scoredBy()
     {
         return $this->belongsTo(User::class, 'scored_by_user_id');

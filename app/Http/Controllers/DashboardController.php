@@ -122,7 +122,8 @@ class DashboardController extends Controller
         }
 
         // --- 4. Query Data Tabel ---
-        $query = Prospect::with(['status', 'latestScore'])
+        // UPDATE: Load juga relation user dari latestScore untuk kolom Scored By
+        $query = Prospect::with(['status', 'latestScore.user'])
             ->readyForPrediction(); 
 
         // Filter Status
@@ -177,6 +178,10 @@ class DashboardController extends Controller
                     'scored_at'      => $item->latestScore 
                                             ? Carbon::parse($item->latestScore->scored_at)->format('d M Y H:i') 
                                             : null,
+                    // UPDATE: Tambahkan scored_by
+                    'scored_by'      => $item->latestScore && $item->latestScore->user 
+                                            ? $item->latestScore->user->name 
+                                            : '-',
                     'age'            => $item->age,
                     'job'            => $item->job,
                     'education'      => $item->education,
@@ -553,6 +558,7 @@ class DashboardController extends Controller
                                     'model_version'     => 'decision_tree_v1',
                                     'score_value'       => $prob,
                                     'priority'          => $priority,
+                                    // UPDATE: Menyimpan ID user yang sedang login
                                     'scored_by_user_id' => auth()->id() ?? null,
                                     'scored_at'         => now(),
                                 ]
