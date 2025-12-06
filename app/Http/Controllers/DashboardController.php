@@ -14,7 +14,7 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
     /**
-     * Menampilkan Dashboard dengan Filter & Pagination
+     * Menampilkan Dashboard dengan Filter & Pagination (TANPA CARD STATISTIK)
      */
     public function index(Request $request)
     {
@@ -29,23 +29,16 @@ class DashboardController extends Controller
             });
         }
 
-        // 2. Statistik (Global)
-        // Hitung total tanpa terpengaruh filter agar user tetap tahu total data di DB
-        $stats = [
-            'total_prospects' => Prospect::count(),
-            'processed'       => Prospect::has('latestScore')->count(),
-            'high_priority'   => Prospect::whereHas('latestScore', function ($q) {
-                                    $q->where('priority', 1);
-                                })->count(),
-        ];
+        // BAGIAN STATISTIK (CARD) DIHAPUS SESUAI PERMINTAAN
+        // Admin hanya akan melihat Tabel Data.
 
-        // 3. Ambil Opsi Status untuk Dropdown Filter
+        // 2. Ambil Opsi Status untuk Dropdown Filter
         $statusOptions = ProspectStatus::select('status_code')
             ->distinct()
             ->orderBy('status_code')
             ->pluck('status_code');
 
-        // 4. Pagination & Formatting Data
+        // 3. Pagination & Formatting Data
         $prospects = $query->orderByDesc('id')
             ->paginate(50)
             ->withQueryString() // Penting: agar filter status tidak hilang saat pindah halaman
@@ -77,11 +70,11 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Return tanpa variable 'stats'
         return Inertia::render('Dashboard', [
-            'stats'         => $stats,
             'prospects'     => $prospects,
-            'statusOptions' => $statusOptions,           // Kirim opsi status ke frontend
-            'filters'       => $request->only(['status']), // Kirim state filter saat ini
+            'statusOptions' => $statusOptions,       
+            'filters'       => $request->only(['status']), 
         ]);
     }
 
@@ -129,13 +122,11 @@ class DashboardController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // Tambahkan validasi assigned_to (ID User Bankir)
         $validated = $request->validate([
             'age'            => 'numeric|nullable',
             'job'            => 'string|nullable',
             'education'      => 'string|nullable',
-            'assigned_to'    => 'numeric|nullable|exists:users,id', // Validasi baru
-            // ... (validasi lainnya biarkan sama)
+            'assigned_to'    => 'numeric|nullable|exists:users,id', 
             'month'          => 'string|nullable',
             'duration'       => 'numeric|nullable',
             'campaign'       => 'numeric|nullable',
@@ -150,33 +141,13 @@ class DashboardController extends Controller
         try {
             $prospect = Prospect::findOrFail($id);
             
-            // Cek apakah ada perubahan Assignment (Penunjukan Bankir)
-            $oldAssignee = $prospect->assigned_to; // Asumsi ada kolom assigned_to di tabel prospects
+            $oldAssignee = $prospect->assigned_to; 
             $newAssignee = $request->assigned_to ?? $oldAssignee;
 
-            // 1. Update Data Prospek
-            // Kita pisahkan assigned_to dari validated array jika kolom di DB namanya beda
-            // Tapi kalau di DB nama kolomnya 'assigned_to', baris ini aman:
+            // Update
             $prospect->update($validated);
 
-            // 2. LOGIKA NOTIFIKASI
-            // Jika assignee berubah DAN assignee-nya bukan null
-            if ($newAssignee && ($newAssignee != $oldAssignee)) {
-                // OPSI A: Simpan ke tabel notifikasi (Jika ada tabel notifications)
-                \App\Models\Notification::create([
-                     'user_id' => $newAssignee,
-                     'title'   => 'Prospek Baru',
-                     'message' => 'Anda mendapatkan prospek baru untuk dihubungi.',
-                     'is_read' => false
-                 ]);
-
-                // OPSI B (Sementara): Kita update status jadi NEW agar muncul di list sales
-                // Ini memastikan sales "melihat" data baru ini.
-                // (Tidak perlu kode tambahan jika filter sales berdasarkan assigned_to)
-            }
-
-            // 3. Reset Score jika data nasabah berubah
-            // (Kita cek apakah data vital berubah, kalau cuma assign sales, jangan hapus score)
+            // Reset Score jika data vital berubah
             $dataVital = ['age', 'duration', 'campaign', 'poutcome'];
             if ($prospect->wasChanged($dataVital)) {
                 $prospect->scores()->delete();
@@ -189,8 +160,9 @@ class DashboardController extends Controller
             return back()->with('error', 'Gagal update: ' . $e->getMessage());
         }
     }
+    
     /**
-     * [BARU] Fitur Hapus Satuan (Single Delete)
+     * Fitur Hapus Satuan (Single Delete)
      */
     public function destroy($id)
     {
@@ -204,15 +176,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * [BARU] Fitur Hapus Batch (Selection vs All Filtered)
+     * Fitur Hapus Batch (Selection vs All Filtered)
      */
     public function bulkDestroy(Request $request)
     {
-        // 1. Set Unlimited Time agar tidak timeout jika hapus ribuan data
         ini_set('max_execution_time', 0);
         set_time_limit(0);
 
-        // Ambil tipe hapus: 'selection' (halaman ini) atau 'all_filtered' (semua halaman)
         $type = $request->input('type'); 
 
         DB::beginTransaction();
@@ -220,7 +190,6 @@ class DashboardController extends Controller
             $count = 0;
 
             if ($type === 'selection') {
-                // --- OPSI 1: Hapus ID yang dipilih (Checkbox Halaman Ini) ---
                 $ids = $request->input('ids', []);
                 if (empty($ids)) return back()->with('error', 'Tidak ada data yang dipilih.');
                 
@@ -228,19 +197,16 @@ class DashboardController extends Controller
                 $count = count($ids);
 
             } elseif ($type === 'all_filtered') {
-                // --- OPSI 2: Hapus SEMUA data berdasarkan Filter (Semua Halaman) ---
                 $statusFilter = $request->input('status');
                 
                 $query = Prospect::query();
                 
-                // Terapkan logika filter yang SAMA PERSIS dengan method index
                 if ($statusFilter) {
                     $query->whereHas('status', function($q) use ($statusFilter) {
                         $q->where('status_code', $statusFilter);
                     });
                 }
                 
-                // Eksekusi delete massal
                 $count = $query->delete();
             }
 

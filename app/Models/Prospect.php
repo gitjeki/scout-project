@@ -49,4 +49,9 @@ class Prospect extends Model
     return $this->hasOne(ContactActivity::class, 'prospect_id')
                 ->latest('contact_at');
 }
+
+public function contactActivities()
+{
+    return $this->hasMany(ContactActivity::class, 'prospect_id');
+}
 }

@@ -3,9 +3,54 @@ import { Head, usePage, useForm, Link, router } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaRobot, FaCloudUploadAlt, 
     FaCheckCircle, FaExclamationCircle, FaSave, FaEdit, FaTimes, FaPlus,
-    FaTrash, FaFilter, FaSpinner
+    FaTrash, FaFilter, FaSpinner,
+    FaFire, FaCalendarCheck, FaClock, FaChartPie, FaUser
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
+
+// --- COMPONENTS HELPER (Dipindahkan dari Sales) ---
+const StatusCard = ({ stat }) => {
+    const bgColors = {
+        blue: 'bg-blue-50 border-blue-200 text-blue-800',
+        purple: 'bg-purple-50 border-purple-200 text-purple-800',
+        green: 'bg-green-50 border-green-200 text-green-800',
+        red: 'bg-red-50 border-red-200 text-red-800',
+        orange: 'bg-orange-50 border-orange-200 text-orange-800',
+        gray: 'bg-gray-50 border-gray-200 text-gray-800',
+    };
+    const activeClass = bgColors[stat.color] || bgColors.gray;
+    return (
+        <div className={`p-3 rounded-lg border shadow-sm ${activeClass} flex flex-col justify-between`}>
+            <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">{stat.code.replace('_', ' ')}</p>
+                <h4 className="text-2xl font-extrabold">{stat.count}</h4>
+            </div>
+            <p className="text-[10px] mt-1 opacity-80 truncate" title={stat.desc}>{stat.desc}</p>
+        </div>
+    );
+};
+
+const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
+    let colors = {
+        red: { bg: 'bg-red-50', text: 'text-red-700', icon: 'text-red-500' },
+        blue: { bg: 'bg-blue-50', text: 'text-blue-700', icon: 'text-blue-500' },
+        green: { bg: 'bg-green-50', text: 'text-green-700', icon: 'text-green-500' },
+    }[color] || { bg: 'bg-gray-50', text: 'text-gray-700', icon: 'text-gray-500' };
+
+    return (
+        <div className={`p-4 rounded-xl shadow-sm border border-gray-200 ${colors.bg}`}>
+            <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-600">{title}</p>
+                <div className={`p-2 rounded-full bg-white shadow-sm ${colors.icon}`}><Icon size={14} /></div>
+            </div>
+            <div className="mt-2">
+                <span className={`text-2xl font-extrabold ${colors.text}`}>{value}</span>
+                <span className="text-xs ml-1 font-medium text-gray-500">{unit}</span>
+            </div>
+            <p className="text-[10px] mt-1 text-gray-500 truncate">{description}</p>
+        </div>
+    );
+};
 
 // --- KOMPONEN LOADING SCREEN ---
 const LoadingOverlay = ({ isVisible }) => {
@@ -47,7 +92,7 @@ const SelectGroup = ({ label, options, value, onChange, error }) => (
     </div>
 );
 
-// --- MODAL TAMBAH MANUAL (Sama seperti sebelumnya) ---
+// --- MODAL TAMBAH MANUAL ---
 const CreateProspectModal = ({ isOpen, onClose }) => {
     const { data, setData, post, processing, reset, errors } = useForm({
         age: '', job: 'admin.', education: 'university.degree', month: 'may', duration: '',
@@ -93,7 +138,6 @@ const CreateProspectModal = ({ isOpen, onClose }) => {
 };
 
 // --- KOMPONEN BARIS (ROW) ---
-// --- UPDATE BAGIAN PROSPECT ROW (Supaya checkbox tidak error) ---
 const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [values, setValues] = useState({ ...item });
@@ -122,10 +166,8 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
         return <span className="text-gray-700">{item[name]}</span>;
     };
 
-    // HANYA PASTIKAN CHECKBOX MENGGUNAKAN ID YANG BENAR
     return (
         <tr className={`hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${isSelected ? 'bg-blue-50' : ''}`}>
-            
             {/* CHECKBOX */}
             <td className="px-4 py-3 text-center sticky left-0 bg-white hover:bg-gray-50 z-20 border-r border-gray-100 w-10">
                 <input 
@@ -178,7 +220,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDelete }) =>
 };
 
 // --- MAIN PAGE (REVISI) ---
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {} }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, dailyStats, statusStats }) {
     const { auth, flash } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -236,8 +278,6 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
     // Forms
     const { data: dataImport, setData: setDataImport, post: postImport, processing: processingImport, reset: resetImport } = useForm({ csv_file: null });
-    
-    // INI KUNCI LOADING SCREEN: Gunakan state processingPredict
     const { post: postPredict, processing: processingPredict } = useForm({});
     
     const submitImport = (e) => { e.preventDefault(); postImport(route('dashboard.import'), { onSuccess: () => { resetImport(); document.getElementById('file-upload').value = ''; } }); };
@@ -251,13 +291,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     // Zoom
     useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
 
+    // Definisikan default untuk mencegah error jika data belum ada
+    const safeDailyStats = dailyStats || { hot_leads: 0, calls_today: 0, duration_min: 0 };
+    const safeStatusStats = statusStats || [];
+
     return (
         <SidebarLayout header="Sales Analysis Dashboard">
             <Head title="Dashboard" />
             
-            {/* 1. LOADING OVERLAY DISINI */}
             <LoadingOverlay isVisible={processingPredict} />
-            
             <CreateProspectModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
 
             {/* Flash Messages */}
@@ -267,11 +309,23 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 </div>
             )}
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-blue-100 rounded-full text-blue-600 mr-4"><FaUsers size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">Total Prospek</p><h3 className="text-2xl font-bold text-gray-800">{stats?.total_prospects}</h3></div></div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-green-100 rounded-full text-green-600 mr-4"><FaCheckCircle size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">Processed</p><h3 className="text-2xl font-bold text-gray-800">{stats?.processed}</h3></div></div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center"><div className="p-3 bg-orange-100 rounded-full text-orange-600 mr-4"><FaChartLine size={20} /></div><div><p className="text-gray-500 text-xs uppercase font-bold">High Priority</p><h3 className="text-2xl font-bold text-gray-800">{stats?.high_priority}</h3></div></div>
+            {/* --- NEW STATS CARDS SECTION (Dipindah dari Sales) --- */}
+            <div className="mb-8">
+                 {/* BAGIAN 1: GLOBAL STATS */}
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaChartLine/> Global Sales Performance</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                    <StatsCard icon={FaFire} color="red" title="Global Hot Leads" value={safeDailyStats.hot_leads} unit="Prospects" description="Total High Priority & New Status" />
+                    <StatsCard icon={FaCalendarCheck} color="blue" title="Global Activity Today" value={safeDailyStats.calls_today} unit="Calls" description="Total calls by all sales today" />
+                    <StatsCard icon={FaClock} color="green" title="Global Talk Duration" value={safeDailyStats.duration_min} unit="Mins" description="Total duration today" />
+                </div>
+
+                 {/* BAGIAN 2: PIPELINE OVERVIEW */}
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2"><FaChartPie/> Global Pipeline Overview</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
+                    {safeStatusStats.map((stat) => (
+                        <StatusCard key={stat.code} stat={stat} />
+                    ))}
+                </div>
             </div>
 
             {isAdmin && (
@@ -289,13 +343,11 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                     {/* Batch Actions Section */}
                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                        {/* Tombol Hapus Pilihan (Page Ini) */}
                         {selectedIds.length > 0 && (
                             <button onClick={() => handleBatchDelete('selection')} className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 transition">
                                 <FaTrash /> Hapus {selectedIds.length} Terpilih (Page Ini)
                             </button>
                         )}
-                        {/* Tombol Hapus Semua (Filtered) */}
                         <button onClick={() => handleBatchDelete('all_filtered')} className="flex items-center gap-2 px-3 py-2 bg-gray-800 text-white rounded text-xs font-bold hover:bg-gray-900 transition">
                             <FaExclamationCircle /> Hapus Semua {filterStatus ? `(${filterStatus})` : 'Data'}
                         </button>
@@ -303,7 +355,6 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 </div>
 
                 {/* MAIN TABLE */}
-                {/* COPY PASTE TABEL DARI FILE LAMA ANDA, TIDAK ADA PERUBAHAN LOGIKA DI TABEL ADMIN */}
                 <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden">
                     <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center flex-wrap gap-2">
                         <div className="flex flex-col xl:flex-row gap-4 items-center w-full">
