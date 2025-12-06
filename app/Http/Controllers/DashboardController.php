@@ -47,7 +47,7 @@ class DashboardController extends Controller
                 'cons_conf_idx'  => -36.1,
                 'euribor3m'      => 4.857,
                 'nr_employed'    => 5191,
-                'campaign'       => 1,
+         
             ],
             'dropdowns' => [
                 'jobs' => ['admin.', 'blue-collar', 'technician', 'services', 'management', 'retired', 'entrepreneur', 'self-employed', 'housemaid', 'student'],
