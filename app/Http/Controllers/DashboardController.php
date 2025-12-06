@@ -37,8 +37,7 @@ class DashboardController extends Controller
         $user = $request->user();
         $isSales = $user->role === 'sales';
 
-        // --- 1. AMBIL KONFIGURASI TEMPLATE FORM (BARU) ---
-        // Cek database, jika kosong gunakan default hardcoded
+        // --- 1. AMBIL KONFIGURASI TEMPLATE FORM ---
         $configRecord = KonfigurasiDashboard::where('key', 'form_template')->first();
         
         $formTemplate = $configRecord ? $configRecord->value : [
@@ -47,7 +46,6 @@ class DashboardController extends Controller
                 'cons_conf_idx'  => -36.1,
                 'euribor3m'      => 4.857,
                 'nr_employed'    => 5191,
-         
             ],
             'dropdowns' => [
                 'jobs' => ['admin.', 'blue-collar', 'technician', 'services', 'management', 'retired', 'entrepreneur', 'self-employed', 'housemaid', 'student'],
@@ -56,7 +54,7 @@ class DashboardController extends Controller
             ]
         ];
 
-        // --- 2. STATISTIK UMUM (Dipakai Admin) ---
+        // --- 2. STATISTIK UMUM ---
         $stats = [
             'total_input' => Prospect::count(),
             'today_input' => Prospect::whereDate('created_at', Carbon::today())->count(),
@@ -64,7 +62,7 @@ class DashboardController extends Controller
             'today_predicted' => PredictionScore::whereDate('scored_at', Carbon::today())->count(),
         ];
 
-        // --- 3. STATISTIK KHUSUS SALES (Personal & Pipeline) ---
+        // --- 3. STATISTIK KHUSUS SALES ---
         $personalStats = null;
         $pipelineStats = null;
 
@@ -84,7 +82,7 @@ class DashboardController extends Controller
             $durationSec = ContactActivity::where('telemarketer_id', $user->id)
                 ->whereDate('contact_at', $today)->sum('call_duration_sec');
 
-            // Simpan ke DB (Sync ke tabel DailySalesStat)
+            // Simpan ke DB
             $statRecord = DailySalesStat::updateOrCreate(
                 ['user_id' => $user->id, 'date' => $today],
                 [
@@ -134,7 +132,7 @@ class DashboardController extends Controller
             });
         }
 
-        // Filter Priority (BARU)
+        // Filter Priority
         if ($request->has('priority') && $request->priority != '') {
             $query->whereHas('latestScore', function($q) use ($request) {
                 $q->where('priority', $request->priority);
@@ -196,7 +194,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction']), // Update filters
+            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction']),
             'stats'         => $stats,
             'personalStats' => $personalStats, 
             'pipelineStats' => $pipelineStats,
@@ -205,12 +203,10 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Update Konfigurasi Template (BARU)
-     * Diakses dari modal edit template di frontend
+     * Update Konfigurasi Template
      */
     public function updateConfiguration(Request $request)
     {
-        // Validasi struktur JSON yang dikirim frontend
         $validated = $request->validate([
             'defaults.cons_price_idx' => 'required|numeric',
             'defaults.cons_conf_idx'  => 'required|numeric',
@@ -223,9 +219,8 @@ class DashboardController extends Controller
         try {
             KonfigurasiDashboard::updateOrCreate(
                 ['key' => 'form_template'],
-                ['value' => $request->all()] // Simpan seluruh payload JSON
+                ['value' => $request->all()] 
             );
-            
             return back()->with('success', 'Konfigurasi template berhasil disimpan.');
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal menyimpan konfigurasi: ' . $e->getMessage());
@@ -233,7 +228,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Tambah Manual
+     * Tambah Manual
      */
     public function store(Request $request)
     {
@@ -272,7 +267,8 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Update Data
+     * Update Data
+     * UPDATE KHUSUS: Menghapus score saat data diedit agar bisa diprediksi ulang.
      */
     public function update(Request $request, $id)
     {
@@ -296,11 +292,16 @@ class DashboardController extends Controller
             $prospect = Prospect::findOrFail($id);
             
             $prospect->update($validated);
-            // Hapus score lama jika data diedit
-            $prospect->scores()->delete();
+            
+            // --- FIX: HAPUS SCORE LAMA ---
+            // Ini akan membuat field score di frontend menjadi null, 
+            // sehingga bisa diprediksi ulang oleh sistem.
+            if ($prospect->scores()->exists()) {
+                $prospect->scores()->delete();
+            }
 
             DB::commit();
-            return back()->with('success', 'Data diperbarui.');
+            return back()->with('success', 'Data diperbarui. Score di-reset agar bisa diprediksi ulang.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal update: ' . $e->getMessage());
@@ -308,7 +309,7 @@ class DashboardController extends Controller
     }
     
     /**
-     * Fitur Hapus Satuan
+     * Hapus Satuan
      */
     public function destroy($id)
     {
@@ -322,7 +323,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Hapus Batch
+     * Hapus Batch
      */
     public function bulkDestroy(Request $request)
     {
@@ -337,24 +338,19 @@ class DashboardController extends Controller
 
             if ($type === 'selection') {
                 $ids = $request->input('ids', []);
-                
                 if (!is_array($ids) || empty($ids)) {
                     return back()->with('error', 'Tidak ada data valid yang dipilih.');
                 }
-                
                 $count = Prospect::whereIn('id', $ids)->delete();
 
             } elseif ($type === 'all_filtered') {
                 $statusFilter = $request->input('status');
-                
                 $query = Prospect::query();
-                
                 if ($statusFilter) {
                     $query->whereHas('status', function($q) use ($statusFilter) {
                         $q->where('status_code', $statusFilter);
                     });
                 }
-                
                 $count = $query->delete();
             }
 
@@ -368,7 +364,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Import CSV
+     * Import CSV
      */
     public function import(Request $request)
     {
@@ -486,7 +482,8 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Run Predictions
+     * Run Predictions
+     * UPDATE KHUSUS: Cek ketersediaan data sebelum kirim ke Python.
      */
     public function runPredictions(Request $request)
     {
@@ -497,13 +494,19 @@ class DashboardController extends Controller
         ini_set('max_execution_time', 0); 
         set_time_limit(0); 
 
+        // --- FIX: CEK DATA PENDING ---
+        // Jika count = 0, jangan panggil Python (mencegah error API).
+        $pendingQuery = Prospect::readyForPrediction()->whereDoesntHave('scores');
+        $pendingCount = $pendingQuery->count();
+
+        if ($pendingCount === 0) {
+            return back()->with('success', 'Semua data sudah diprediksi. Tidak ada data baru yang perlu diproses.');
+        }
+
         $totalProcessed = 0;
         $totalFailed    = 0;
 
-        $query = Prospect::readyForPrediction()
-            ->whereDoesntHave('scores');
-
-        $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed) {
+        $pendingQuery->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed) {
             
             $payload = [];
 
@@ -544,13 +547,16 @@ class DashboardController extends Controller
                             elseif ($prob >= 0.5) $priority = 2;
                             else $priority = 3;
 
-                            PredictionScore::create([
-                                'prospect_id'       => $pId,
-                                'model_version'     => 'decision_tree_v1',
-                                'score_value'       => $prob,
-                                'priority'          => $priority,
-                                'scored_by_user_id' => auth()->id() ?? null,
-                            ]);
+                            PredictionScore::updateOrCreate(
+                                ['prospect_id' => $pId],
+                                [
+                                    'model_version'     => 'decision_tree_v1',
+                                    'score_value'       => $prob,
+                                    'priority'          => $priority,
+                                    'scored_by_user_id' => auth()->id() ?? null,
+                                    'scored_at'         => now(),
+                                ]
+                            );
 
                             $totalProcessed++;
                         } catch (\Exception $e) {
@@ -569,12 +575,18 @@ class DashboardController extends Controller
             }
         });
 
+        // --- FIX: HASIL NOTIFIKASI ---
         if ($totalProcessed > 0) {
             return redirect()->route('dashboard')
                 ->with('success', "Proses selesai. {$totalProcessed} data berhasil diprediksi.");
-        } else {
+        } elseif ($totalFailed > 0) {
+            // Ini hanya muncul jika ada data TAPI gagal connect ke Python
             return redirect()->route('dashboard')
-                ->with('error', "Gagal memproses. Cek koneksi ke Service Python.");
+                ->with('error', "Gagal memproses prediksi. Pastikan service Python (Flask) berjalan.");
+        } else {
+            // Fallback (seharusnya tidak terpanggil karena ada cek pendingCount di atas)
+            return redirect()->route('dashboard')
+                ->with('success', "Data sudah up to date.");
         }
     }
 
