@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Prospect;
 use App\Models\ProspectStatus;
 use App\Models\PredictionScore;
-use App\Models\ContactActivity;       // Model Baru
-use App\Models\DailySalesStat;        // Model Baru
-use App\Models\DailyPipelineSnapshot; // Model Baru
-use App\Models\User;                  // Model Baru (Opsional jika butuh query user)
+use App\Models\ContactActivity;
+use App\Models\DailySalesStat;
+use App\Models\DailyPipelineSnapshot;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -118,6 +118,31 @@ class DashboardController extends Controller
             });
         }
 
+        // --- LOGIKA SORTING (BARU) ---
+        $sortField = $request->input('sort_field', 'score'); 
+        $sortDirection = $request->input('sort_direction', 'desc');
+
+        if ($sortField === 'score') {
+            // Sort by Score Value (Relation)
+            $query->orderBy(
+                PredictionScore::select('score_value')
+                    ->whereColumn('prospect_id', 'prospects.id')
+                    ->latest('id')->limit(1),
+                $sortDirection
+            );
+        } elseif ($sortField === 'priority') {
+            // Sort by Priority (Relation)
+            $query->orderBy(
+                PredictionScore::select('priority')
+                    ->whereColumn('prospect_id', 'prospects.id')
+                    ->latest('id')->limit(1),
+                $sortDirection
+            );
+        } else {
+            // Sort by kolom tabel prospect biasa
+            $query->orderBy($sortField, $sortDirection);
+        }
+
         // Ambil Opsi Status
         $statusOptions = ProspectStatus::select('status_code')
             ->distinct()
@@ -125,8 +150,7 @@ class DashboardController extends Controller
             ->pluck('status_code');
 
         // Pagination & Formatting
-        $prospects = $query->orderByDesc('id')
-            ->paginate(50)
+        $prospects = $query->paginate(50)
             ->withQueryString()
             ->through(function ($item) {
                 return [
@@ -154,7 +178,8 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            'filters'       => $request->only(['status']),
+            // Kirim balik filter + sorting params ke Frontend
+            'filters'       => $request->only(['status', 'sort_field', 'sort_direction']),
             'stats'         => $stats,
             // Data tambahan untuk Sales
             'personalStats' => $personalStats, 
@@ -257,7 +282,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Fitur Hapus Batch (Diperbarui)
+     * Fitur Hapus Batch
      */
     public function bulkDestroy(Request $request)
     {

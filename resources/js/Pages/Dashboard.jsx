@@ -6,7 +6,9 @@ import {
     FaTrash, FaFilter, FaSpinner,
     FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle,
     // Icon Sales
-    FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram
+    FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
+    // Icon Sort
+    FaSort, FaSortUp, FaSortDown
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
@@ -357,7 +359,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 
             <td className="px-4 py-3 text-gray-500 text-xs font-mono">#{item.id}</td>
             <td className="px-4 py-3"><span className={`status-badge status-${item.status.toLowerCase()}`}>{item.status}</span></td>
-            <td className="px-4 py-3 font-bold text-blue-600">{item.score !== null ? (item.score * 100).toFixed(1) + '%' : '-'}</td>
+            <td className="px-4 py-3 font-bold text-blue-600">{item.score !== null ? (item.score * 100).toFixed(3) + '%' : '-'}</td>
             <td className="px-4 py-3">
                 {item.priority === 1 && <span className="bg-green-500 text-white px-2 py-0.5 rounded text-[10px]">HIGH</span>}
                 {item.priority === 2 && <span className="bg-yellow-500 text-white px-2 py-0.5 rounded text-[10px]">MED</span>}
@@ -387,8 +389,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     
-    // STATES FOR FILTER & SELECTION
+    // STATES FOR FILTER, SORT & SELECTION
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
+    const [sortField, setSortField] = useState(filters.sort_field || 'id');
+    const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
     const [selectedIds, setSelectedIds] = useState([]);
     
     // STATE FOR DELETE MODAL
@@ -396,13 +400,40 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const [isDeleting, setIsDeleting] = useState(false); 
 
     // RESET SELECTION
-    useEffect(() => { setSelectedIds([]); }, [filterStatus]);
+    useEffect(() => { setSelectedIds([]); }, [filterStatus, sortField, sortDirection]);
     
     // Logic Filter
     const handleFilterChange = (e) => {
         const val = e.target.value;
         setFilterStatus(val);
-        router.get(route('dashboard'), { status: val }, { preserveState: true, replace: true });
+        router.get(route('dashboard'), { 
+            status: val, 
+            sort_field: sortField, 
+            sort_direction: sortDirection 
+        }, { preserveState: true, replace: true });
+    };
+
+    // --- LOGIKA SORTING (Baru) ---
+    const handleSort = (field) => {
+        let newDirection = 'asc';
+        if (sortField === field) {
+            newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        }
+        setSortField(field);
+        setSortDirection(newDirection);
+
+        router.get(route('dashboard'), {
+            status: filterStatus,
+            sort_field: field,
+            sort_direction: newDirection
+        }, { preserveState: true });
+    };
+
+    const renderSortIcon = (field) => {
+        if (sortField !== field) return <FaSort className="inline ml-1 text-gray-400 text-[10px]" />;
+        return sortDirection === 'asc' 
+            ? <FaSortUp className="inline ml-1 text-blue-600" />
+            : <FaSortDown className="inline ml-1 text-blue-600" />;
     };
 
     // --- LOGIKA SELEKSI HALAMAN ---
@@ -674,16 +705,18 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                         />
                                     </th>
                                     <th className="px-4 py-3 text-center sticky left-10 bg-gray-100 z-20 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-24">Action</th>
-                                    <th className="px-4 py-3">ID</th>
+                                    
+                                    {/* SORTABLE COLUMNS */}
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('id')}>ID {renderSortIcon('id')}</th>
                                     <th className="px-4 py-3">Status</th>
-                                    <th className="px-4 py-3">Score</th>
-                                    <th className="px-4 py-3">Priority</th>
-                                    <th className="px-4 py-3">Age</th>
-                                    <th className="px-4 py-3">Job</th>
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('score')}>Score {renderSortIcon('score')}</th>
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('priority')}>Priority {renderSortIcon('priority')}</th>
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('age')}>Age {renderSortIcon('age')}</th>
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('job')}>Job {renderSortIcon('job')}</th>
                                     <th className="px-4 py-3">Education</th>
                                     <th className="px-4 py-3">Month</th>
-                                    <th className="px-4 py-3">Duration</th>
-                                    <th className="px-4 py-3 text-center">Campaign</th>
+                                    <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('duration')}>Duration {renderSortIcon('duration')}</th>
+                                    <th className="px-4 py-3 text-center cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('campaign')}>Campaign {renderSortIcon('campaign')}</th>
                                     <th className="px-4 py-3">P.Out</th>
                                     <th className="px-4 py-3">C.Price</th>
                                     <th className="px-4 py-3">C.Conf</th>
