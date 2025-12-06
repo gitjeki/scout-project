@@ -253,11 +253,10 @@ class DashboardController extends Controller
             // Update
             $prospect->update($validated);
 
-            // Reset Score jika data vital berubah
-            $dataVital = ['age', 'duration', 'campaign', 'poutcome'];
-            if ($prospect->wasChanged($dataVital)) {
-                $prospect->scores()->delete();
-            }
+            // LOGIC BARU: 
+            // Setiap kali admin (atau user) mengedit baris data,
+            // jika baris itu ada score-nya, maka score akan terhapus.
+            $prospect->scores()->delete();
 
             DB::commit();
             return back()->with('success', 'Data diperbarui.');
@@ -555,7 +554,7 @@ class DashboardController extends Controller
             'REFUSED' => 'red', 
             'NO_ANSWER' => 'orange', 
             'INVALID_NUMBER' => 'gray', 
-            default => 'gray'
+            'default' => 'gray'
         };
     }
 }
