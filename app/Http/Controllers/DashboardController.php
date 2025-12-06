@@ -8,6 +8,7 @@ use App\Models\PredictionScore;
 use App\Models\ContactActivity;
 use App\Models\DailySalesStat;
 use App\Models\DailyPipelineSnapshot;
+use App\Models\KonfigurasiDashboard; 
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,26 @@ class DashboardController extends Controller
         $user = $request->user();
         $isSales = $user->role === 'sales';
 
-        // --- 1. STATISTIK UMUM (Dipakai Admin) ---
+        // --- 1. AMBIL KONFIGURASI TEMPLATE FORM (BARU) ---
+        // Cek database, jika kosong gunakan default hardcoded
+        $configRecord = KonfigurasiDashboard::where('key', 'form_template')->first();
+        
+        $formTemplate = $configRecord ? $configRecord->value : [
+            'defaults' => [
+                'cons_price_idx' => 93.200,
+                'cons_conf_idx'  => -36.1,
+                'euribor3m'      => 4.857,
+                'nr_employed'    => 5191,
+                'campaign'       => 1,
+            ],
+            'dropdowns' => [
+                'jobs' => ['admin.', 'blue-collar', 'technician', 'services', 'management', 'retired', 'entrepreneur', 'self-employed', 'housemaid', 'student'],
+                'education' => ['university.degree', 'high.school', 'basic.9y', 'professional.course', 'basic.4y', 'basic.6y', 'illiterate'],
+                'poutcome' => ['nonexistent', 'failure', 'success']
+            ]
+        ];
+
+        // --- 2. STATISTIK UMUM (Dipakai Admin) ---
         $stats = [
             'total_input' => Prospect::count(),
             'today_input' => Prospect::whereDate('created_at', Carbon::today())->count(),
@@ -44,12 +64,11 @@ class DashboardController extends Controller
             'today_predicted' => PredictionScore::whereDate('scored_at', Carbon::today())->count(),
         ];
 
-        // --- 2. STATISTIK KHUSUS SALES (Personal & Pipeline) ---
+        // --- 3. STATISTIK KHUSUS SALES (Personal & Pipeline) ---
         $personalStats = null;
         $pipelineStats = null;
 
         if ($isSales) {
-            // A. Hitung Personal Stats
             $today = now()->format('Y-m-d');
             
             // Hitung Hot Leads (Target)
@@ -81,17 +100,15 @@ class DashboardController extends Controller
                 'duration_min' => round($statRecord->total_duration_sec / 60, 1),
             ];
 
-            // B. Hitung Global Pipeline Stats
+            // Hitung Global Pipeline Stats
             $allStatuses = collect(self::PROSPECT_STATUSES)->where('code', '!==', 'NEW')->values();
             $pipelineStats = [];
 
             foreach ($allStatuses as $status) {
-                // Hitung jumlah per status
                 $count = Prospect::whereHas('status', function($q) use ($status) {
                     $q->where('status_code', $status['code']);
                 })->count();
 
-                // Simpan ke DB (Sync ke tabel DailyPipelineSnapshot)
                 $snapshot = DailyPipelineSnapshot::updateOrCreate(
                     ['date' => $today, 'status_code' => $status['code']],
                     ['count' => $count, 'status_desc' => $status['desc']]
@@ -106,24 +123,21 @@ class DashboardController extends Controller
             }
         }
 
-        // --- 3. Query Data Tabel (Utama untuk Admin) ---
-        // Jika sales tidak boleh lihat tabel utama, data ini tidak akan dirender di frontend (logic ada di JSX)
+        // --- 4. Query Data Tabel ---
         $query = Prospect::with(['status', 'latestScore'])
             ->readyForPrediction(); 
 
-        // Filter Status
         if ($request->has('status') && $request->status != '') {
             $query->whereHas('status', function($q) use ($request) {
                 $q->where('status_code', $request->status);
             });
         }
 
-        // --- LOGIKA SORTING (BARU) ---
+        // Sorting
         $sortField = $request->input('sort_field', 'score'); 
         $sortDirection = $request->input('sort_direction', 'desc');
 
         if ($sortField === 'score') {
-            // Sort by Score Value (Relation)
             $query->orderBy(
                 PredictionScore::select('score_value')
                     ->whereColumn('prospect_id', 'prospects.id')
@@ -131,7 +145,6 @@ class DashboardController extends Controller
                 $sortDirection
             );
         } elseif ($sortField === 'priority') {
-            // Sort by Priority (Relation)
             $query->orderBy(
                 PredictionScore::select('priority')
                     ->whereColumn('prospect_id', 'prospects.id')
@@ -139,17 +152,14 @@ class DashboardController extends Controller
                 $sortDirection
             );
         } else {
-            // Sort by kolom tabel prospect biasa
             $query->orderBy($sortField, $sortDirection);
         }
 
-        // Ambil Opsi Status
         $statusOptions = ProspectStatus::select('status_code')
             ->distinct()
             ->orderBy('status_code')
             ->pluck('status_code');
 
-        // Pagination & Formatting
         $prospects = $query->paginate(50)
             ->withQueryString()
             ->through(function ($item) {
@@ -178,13 +188,41 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            // Kirim balik filter + sorting params ke Frontend
             'filters'       => $request->only(['status', 'sort_field', 'sort_direction']),
             'stats'         => $stats,
-            // Data tambahan untuk Sales
             'personalStats' => $personalStats, 
-            'pipelineStats' => $pipelineStats 
+            'pipelineStats' => $pipelineStats,
+            // Kirim data template konfigurasi ke Frontend
+            'formTemplate'  => $formTemplate 
         ]);
+    }
+
+    /**
+     * Fitur Update Konfigurasi Template (BARU)
+     * Diakses dari modal edit template di frontend
+     */
+    public function updateConfiguration(Request $request)
+    {
+        // Validasi struktur JSON yang dikirim frontend
+        $validated = $request->validate([
+            'defaults.cons_price_idx' => 'required|numeric',
+            'defaults.cons_conf_idx'  => 'required|numeric',
+            'defaults.euribor3m'      => 'required|numeric',
+            'defaults.nr_employed'    => 'required|numeric',
+            'dropdowns.jobs'          => 'required|array',
+            'dropdowns.education'     => 'required|array',
+        ]);
+
+        try {
+            KonfigurasiDashboard::updateOrCreate(
+                ['key' => 'form_template'],
+                ['value' => $request->all()] // Simpan seluruh payload JSON
+            );
+            
+            return back()->with('success', 'Konfigurasi template berhasil disimpan.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menyimpan konfigurasi: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -250,12 +288,8 @@ class DashboardController extends Controller
         try {
             $prospect = Prospect::findOrFail($id);
             
-            // Update
             $prospect->update($validated);
-
-            // LOGIC BARU: 
-            // Setiap kali admin (atau user) mengedit baris data,
-            // jika baris itu ada score-nya, maka score akan terhapus.
+            // Hapus score lama jika data diedit
             $prospect->scores()->delete();
 
             DB::commit();
@@ -338,13 +372,8 @@ class DashboardController extends Controller
             abort(403, 'Akses Ditolak.');
         }
 
-        // Validasi File
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
-        ], [
-            'csv_file.required' => 'File CSV wajib diunggah.',
-            'csv_file.mimes'    => 'Format file harus CSV atau TXT.',
-            'csv_file.max'      => 'Ukuran file maksimal 10MB.',
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
         ]);
 
         try {
@@ -467,7 +496,6 @@ class DashboardController extends Controller
         $query = Prospect::readyForPrediction()
             ->whereDoesntHave('scores');
 
-        // Chunking untuk memory efficiency
         $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed) {
             
             $payload = [];
@@ -543,9 +571,6 @@ class DashboardController extends Controller
         }
     }
 
-    /**
-     * Helper Function: Menentukan warna status
-     */
     private function getStatusColor($code) {
         return match($code) {
             'CONTACTED' => 'blue', 

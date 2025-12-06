@@ -27,11 +27,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 2. Data Control
     Route::get('/data-control', [DataControlController::class, 'index'])->name('data-control.index');
 
-    // 3. Action Admin (Import & Prediksi)
+    // 3. Action Admin (Import, Prediksi & Konfigurasi)
     Route::post('/dashboard/import', [DashboardController::class, 'import'])->name('dashboard.import');
     
     // [PENTING] Nama route ini disesuaikan agar tombol Prediksi di React berfungsi
     Route::post('/dashboard/run-predictions', [DashboardController::class, 'runPredictions'])->name('dashboard.run-predictions');
+
+    // [BARU] Route untuk Simpan Konfigurasi Template Form
+    Route::post('/dashboard/configuration', [DashboardController::class, 'updateConfiguration'])->name('dashboard.update-configuration');
 
     // 4. CRUD Data Prospek
     Route::post('/dashboard/store', [DashboardController::class, 'store'])->name('dashboard.store');

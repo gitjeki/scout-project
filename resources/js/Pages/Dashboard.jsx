@@ -8,7 +8,9 @@ import {
     // Icon Sales
     FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
     // Icon Sort
-    FaSort, FaSortUp, FaSortDown
+    FaSort, FaSortUp, FaSortDown,
+    // Icon Baru
+    FaCog, FaListUl, FaMoneyBillWave
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
@@ -55,52 +57,26 @@ const PerformanceCard = ({ title, value, unit, subtext, icon: Icon, theme }) => 
 
 // 2. KARTU PIPELINE (Bagian Bawah - Overview)
 const PipelineStatusCard = ({ title, count, description, statusType }) => {
-    // Config warna berdasarkan status (meniru gambar)
     const config = {
-        'CONTACTED': { 
-            bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600',
-            defaultDesc: 'Sudah ditelepon, belum ada keputusan'
-        },
-        'INTERESTED': { 
-            bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600',
-            defaultDesc: 'Nasabah tertarik, butuh follow up'
-        },
-        'ACCEPTED': { 
-            bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600',
-            defaultDesc: 'Nasabah setuju mendaftar'
-        },
-        'REFUSED': { 
-            bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600',
-            defaultDesc: 'Nasabah menolak penawaran'
-        },
-        'NO ANSWER': { 
-            bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600',
-            defaultDesc: 'Telepon tidak diangkat berkali-kali'
-        },
-        'INVALID NUMBER': { 
-            bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600',
-            defaultDesc: 'Nomor telepon salah/tidak terdaftar'
-        }
+        'CONTACTED': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', defaultDesc: 'Sudah ditelepon, belum ada keputusan' },
+        'INTERESTED': { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', defaultDesc: 'Nasabah tertarik, butuh follow up' },
+        'ACCEPTED': { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', defaultDesc: 'Nasabah setuju mendaftar' },
+        'REFUSED': { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', defaultDesc: 'Nasabah menolak penawaran' },
+        'NO_ANSWER': { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', defaultDesc: 'Telepon tidak diangkat berkali-kali' },
+        'INVALID_NUMBER': { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', defaultDesc: 'Nomor telepon salah/tidak terdaftar' }
     };
 
-    // Fallback jika status tidak dikenali
-    const style = config[title.toUpperCase()] || { 
+    const style = config[title.toUpperCase().replace(' ', '_')] || config[title.toUpperCase()] || { 
         bg: 'bg-white', border: 'border-gray-200', text: 'text-gray-700', defaultDesc: 'Status prospek' 
     };
 
     return (
         <div className={`p-4 rounded-lg border ${style.border} ${style.bg} h-full flex flex-col justify-between shadow-sm`}>
             <div>
-                <h4 className={`text-[11px] font-bold uppercase tracking-wider ${style.text} mb-2`}>
-                    {title}
-                </h4>
-                <div className="text-3xl font-extrabold text-gray-800 mb-2">
-                    {count}
-                </div>
+                <h4 className={`text-[11px] font-bold uppercase tracking-wider ${style.text} mb-2`}>{title}</h4>
+                <div className="text-3xl font-extrabold text-gray-800 mb-2">{count}</div>
             </div>
-            <p className="text-[10px] text-gray-500 leading-tight">
-                {description || style.defaultDesc}
-            </p>
+            <p className="text-[10px] text-gray-500 leading-tight">{description || style.defaultDesc}</p>
         </div>
     );
 };
@@ -217,9 +193,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, type, count, statusNam
                     <p className="text-gray-500 text-sm mb-6 leading-relaxed">{message}</p>
                     
                     <div className="flex gap-3 w-full">
-                        <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors">
-                            Batal
-                        </button>
+                        <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors">Batal</button>
                         <button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
                             <FaTrash size={14} /> Hapus
                         </button>
@@ -230,12 +204,160 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, type, count, statusNam
     );
 };
 
-// --- CONSTANTS & FORM COMPONENTS ---
-const OPT_JOBS = ['admin.', 'services', 'management', 'blue-collar', 'entrepreneur', 'student', 'technician', 'housemaid', 'self-employed', 'unemployed', 'retired'];
-const OPT_EDUCATION = ['basic.4y', 'basic.6y', 'basic.9y', 'high.school', 'professional.course', 'university.degree', 'illiterate', 'unknown'];
-const OPT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-const OPT_POUTCOME = ['nonexistent', 'failure', 'success'];
+// --- [BARU] MODAL KONFIGURASI DASHBOARD ---
+const ConfigurationModal = ({ isOpen, onClose, template }) => {
+    const { data, setData, post, processing, errors } = useForm({
+        defaults: template?.defaults || {},
+        dropdowns: template?.dropdowns || { jobs: [], education: [] }
+    });
 
+    if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        post(route('dashboard.update-configuration'), {
+            onSuccess: () => onClose(),
+            preserveScroll: true
+        });
+    };
+
+    // Helper untuk mengubah item di array dropdown
+    const handleArrayChange = (category, index, value) => {
+        const newArray = [...data.dropdowns[category]];
+        newArray[index] = value;
+        setData('dropdowns', { ...data.dropdowns, [category]: newArray });
+    };
+
+    // Helper Hapus Item
+    const removeArrayItem = (category, index) => {
+        const newArray = data.dropdowns[category].filter((_, i) => i !== index);
+        setData('dropdowns', { ...data.dropdowns, [category]: newArray });
+    };
+
+    // Helper Tambah Item
+    const addArrayItem = (category) => {
+        const newArray = [...data.dropdowns[category], ''];
+        setData('dropdowns', { ...data.dropdowns, [category]: newArray });
+    };
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
+                {/* Header */}
+                <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <FaCog className="text-blue-600" /> Konfigurasi Template Form
+                    </h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-red-500"><FaTimes size={20} /></button>
+                </div>
+
+                {/* Body (Scrollable) */}
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
+                    
+                    {/* 1. NILAI DEFAULT EKONOMI */}
+                    <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                        <h4 className="text-sm font-bold text-blue-800 mb-4 flex items-center gap-2">
+                            <FaMoneyBillWave /> Nilai Indikator Ekonomi (Default)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500">Cons. Price Idx</label>
+                                <input type="number" step="0.001" 
+                                    value={data.defaults.cons_price_idx} 
+                                    onChange={e => setData('defaults', {...data.defaults, cons_price_idx: e.target.value})}
+                                    className="w-full text-sm rounded border-gray-300 focus:ring-blue-500 mt-1"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500">Cons. Conf. Idx</label>
+                                <input type="number" step="0.001" 
+                                    value={data.defaults.cons_conf_idx} 
+                                    onChange={e => setData('defaults', {...data.defaults, cons_conf_idx: e.target.value})}
+                                    className="w-full text-sm rounded border-gray-300 focus:ring-blue-500 mt-1"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500">Euribor 3M</label>
+                                <input type="number" step="0.001" 
+                                    value={data.defaults.euribor3m} 
+                                    onChange={e => setData('defaults', {...data.defaults, euribor3m: e.target.value})}
+                                    className="w-full text-sm rounded border-gray-300 focus:ring-blue-500 mt-1"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500">Nr. Employed</label>
+                                <input type="number" step="0.001" 
+                                    value={data.defaults.nr_employed} 
+                                    onChange={e => setData('defaults', {...data.defaults, nr_employed: e.target.value})}
+                                    className="w-full text-sm rounded border-gray-300 focus:ring-blue-500 mt-1"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. DROPDOWN EDITOR */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Jobs Editor */}
+                        <div className="border rounded-lg p-4">
+                             <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <FaListUl /> Daftar Pekerjaan (Job)
+                            </h4>
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                {data.dropdowns.jobs.map((job, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input type="text" value={job} 
+                                            onChange={e => handleArrayChange('jobs', idx, e.target.value)}
+                                            className="flex-1 text-xs rounded border-gray-300 py-1"
+                                        />
+                                        <button type="button" onClick={() => removeArrayItem('jobs', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded">
+                                            <FaTrash size={12}/>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            <button type="button" onClick={() => addArrayItem('jobs')} className="mt-3 w-full py-1 text-xs border border-dashed border-gray-400 text-gray-600 rounded hover:bg-gray-50">
+                                + Tambah Job
+                            </button>
+                        </div>
+
+                        {/* Education Editor */}
+                        <div className="border rounded-lg p-4">
+                             <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <FaListUl /> Daftar Pendidikan (Education)
+                            </h4>
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                {data.dropdowns.education.map((edu, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input type="text" value={edu} 
+                                            onChange={e => handleArrayChange('education', idx, e.target.value)}
+                                            className="flex-1 text-xs rounded border-gray-300 py-1"
+                                        />
+                                        <button type="button" onClick={() => removeArrayItem('education', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded">
+                                            <FaTrash size={12}/>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            <button type="button" onClick={() => addArrayItem('education')} className="mt-3 w-full py-1 text-xs border border-dashed border-gray-400 text-gray-600 rounded hover:bg-gray-50">
+                                + Tambah Education
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                {/* Footer */}
+                <div className="p-5 border-t bg-gray-50 flex justify-end gap-3 rounded-b-xl">
+                    <button onClick={onClose} className="px-5 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
+                    <button onClick={handleSubmit} disabled={processing} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-md flex items-center gap-2">
+                        {processing ? <FaSpinner className="animate-spin" /> : <FaSave />} Simpan Perubahan
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- CONSTANTS & FORM COMPONENTS ---
 const InputGroup = ({ label, type = "text", placeholder, value, onChange, error }) => (
     <div className="flex flex-col">
         <label className="text-xs font-bold text-gray-600 mb-1 capitalize">{label}</label>
@@ -254,12 +376,47 @@ const SelectGroup = ({ label, options, value, onChange, error }) => (
     </div>
 );
 
-// --- MODAL TAMBAH MANUAL ---
-const CreateProspectModal = ({ isOpen, onClose }) => {
+const OPT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const OPT_POUTCOME = ['nonexistent', 'failure', 'success'];
+
+// --- MODAL TAMBAH MANUAL (UPDATED DENGAN TEMPLATE) ---
+const CreateProspectModal = ({ isOpen, onClose, template }) => {
+    // Gunakan nilai dari template jika ada, jika tidak fallback ke default
+    const defaults = template?.defaults || {};
+    const dropdowns = template?.dropdowns || { jobs: [], education: [] };
+
     const { data, setData, post, processing, reset, errors } = useForm({
-        age: '', job: 'admin.', education: 'university.degree', month: 'may', duration: '',
-        campaign: '', poutcome: 'nonexistent', cons_price_idx: '', cons_conf_idx: '', euribor3m: '', nr_employed: ''
+        age: '', 
+        job: dropdowns.jobs[0] || '', 
+        education: dropdowns.education[0] || '', 
+        month: 'may', 
+        duration: '',
+        campaign: defaults.campaign || 1, 
+        poutcome: 'nonexistent', 
+        cons_price_idx: defaults.cons_price_idx || '', 
+        cons_conf_idx: defaults.cons_conf_idx || '', 
+        euribor3m: defaults.euribor3m || '', 
+        nr_employed: defaults.nr_employed || ''
     });
+
+    // Reset form saat modal dibuka agar mengambil nilai terbaru dari template
+    useEffect(() => {
+        if(isOpen) {
+            setData({
+                age: '', 
+                job: dropdowns.jobs[0] || '', 
+                education: dropdowns.education[0] || '', 
+                month: 'may', 
+                duration: '',
+                campaign: defaults.campaign || 1, 
+                poutcome: 'nonexistent', 
+                cons_price_idx: defaults.cons_price_idx || '', 
+                cons_conf_idx: defaults.cons_conf_idx || '', 
+                euribor3m: defaults.euribor3m || '', 
+                nr_employed: defaults.nr_employed || ''
+            });
+        }
+    }, [isOpen, template]);
 
     if (!isOpen) return null;
 
@@ -276,8 +433,9 @@ const CreateProspectModal = ({ isOpen, onClose }) => {
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                         <InputGroup label="Age" type="number" value={data.age} onChange={e => setData('age', e.target.value)} error={errors.age} />
-                        <SelectGroup label="Job" options={OPT_JOBS} value={data.job} onChange={e => setData('job', e.target.value)} error={errors.job} />
-                        <SelectGroup label="Education" options={OPT_EDUCATION} value={data.education} onChange={e => setData('education', e.target.value)} error={errors.education} />
+                        {/* Gunakan dropdowns dari Props Template */}
+                        <SelectGroup label="Job" options={dropdowns.jobs} value={data.job} onChange={e => setData('job', e.target.value)} error={errors.job} />
+                        <SelectGroup label="Education" options={dropdowns.education} value={data.education} onChange={e => setData('education', e.target.value)} error={errors.education} />
                         <SelectGroup label="Month" options={OPT_MONTHS} value={data.month} onChange={e => setData('month', e.target.value)} error={errors.month} />
                         <SelectGroup label="Poutcome" options={OPT_POUTCOME} value={data.poutcome} onChange={e => setData('poutcome', e.target.value)} error={errors.poutcome} />
                     </div>
@@ -299,10 +457,11 @@ const CreateProspectModal = ({ isOpen, onClose }) => {
     );
 };
 
-// --- KOMPONEN BARIS (ROW) ---
-const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteRequest }) => {
+// --- KOMPONEN BARIS (ROW) - UPDATED UNTUK PAKAI TEMPLATE ---
+const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteRequest, template }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [values, setValues] = useState({ ...item });
+    const dropdowns = template?.dropdowns || { jobs: [], education: [] };
 
     const handleChange = (e) => setValues({ ...values, [e.target.name]: e.target.value });
 
@@ -366,8 +525,8 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
                 {item.priority === 3 && <span className="bg-gray-400 text-white px-2 py-0.5 rounded text-[10px]">LOW</span>}
             </td>
             <td className="px-4 py-3">{renderCell('age', 'number', 'w-16')}</td>
-            <td className="px-4 py-3">{renderCell('job', 'text', 'w-32', OPT_JOBS)}</td>
-            <td className="px-4 py-3">{renderCell('education', 'text', 'w-36', OPT_EDUCATION)}</td>
+            <td className="px-4 py-3">{renderCell('job', 'text', 'w-32', dropdowns.jobs)}</td>
+            <td className="px-4 py-3">{renderCell('education', 'text', 'w-36', dropdowns.education)}</td>
             <td className="px-4 py-3 uppercase">{renderCell('month', 'text', 'w-20', OPT_MONTHS)}</td>
             <td className="px-4 py-3">{renderCell('duration', 'number', 'w-20')}</td>
             <td className="px-4 py-3 text-center">{renderCell('campaign', 'number', 'w-16')}</td>
@@ -382,12 +541,13 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 };
 
 // --- MAIN PAGE ---
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, pipelineStats }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, pipelineStats, formTemplate }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const isSales = auth.user.role === 'sales';
 
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [isConfigModalOpen, setConfigModalOpen] = useState(false); // [BARU] State untuk Modal Konfigurasi
     
     // STATES FOR FILTER, SORT & SELECTION
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
@@ -471,6 +631,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     // --- EKSEKUSI DELETE ---
     const confirmDelete = () => {
         const { type, targetId } = deleteModalState;
+        const currentSelection = [...selectedIds]; // Simpan state local untuk dikirim
         setIsDeleting(true);
 
         if (type === 'single') {
@@ -485,7 +646,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         } else if (type === 'selection' || type === 'all_filtered') {
             router.post(route('dashboard.bulk-destroy'), {
                 type: type,
-                ids: selectedIds, 
+                ids: currentSelection, 
                 status: filterStatus
             }, {
                 preserveScroll: true,
@@ -534,8 +695,20 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 mode={isDeleting ? 'delete' : (processingImport ? 'import' : 'predict')} 
             />
 
-            <CreateProspectModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
+            {/* MODAL TAMBAH MANUAL (Dengan Template Props) */}
+            <CreateProspectModal 
+                isOpen={isCreateModalOpen} 
+                onClose={() => setCreateModalOpen(false)} 
+                template={formTemplate} // PASS DATA TEMPLATE
+            />
             
+            {/* [BARU] MODAL KONFIGURASI */}
+            <ConfigurationModal 
+                isOpen={isConfigModalOpen}
+                onClose={() => setConfigModalOpen(false)}
+                template={formTemplate} // PASS DATA TEMPLATE
+            />
+
             <DeleteConfirmModal 
                 isOpen={deleteModalState.isOpen} 
                 onClose={() => setDeleteModalState({ ...deleteModalState, isOpen: false })} 
@@ -669,6 +842,12 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             
                             {/* Import & Predict Buttons */}
                             <div className="flex flex-col md:flex-row gap-2 w-full justify-end">
+                                
+                                {/* TOMBOL KONFIGURASI TEMPLATE (BARU) */}
+                                <button onClick={() => setConfigModalOpen(true)} className="bg-white border border-gray-400 text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 justify-center">
+                                    <FaCog /> Config
+                                </button>
+
                                 <button onClick={() => setCreateModalOpen(true)} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 justify-center"><FaPlus /> Manual</button>
                                 
                                 <form onSubmit={submitImport} className="flex gap-2 items-center">
@@ -735,6 +914,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                             isSelected={selectedIds.includes(item.id)}
                                             onToggleSelect={handleSelectRow}
                                             onDeleteRequest={requestDeleteSingle}
+                                            template={formTemplate} // PASS DATA TEMPLATE KE ROW
                                         />
                                     ))
                                 ) : (
