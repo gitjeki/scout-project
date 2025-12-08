@@ -184,7 +184,7 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
         });
     }, [filters]);
 
-    useEffect(() => { document.body.style.zoom = "75%"; return () => { document.body.style.zoom = "100%"; }; }, []);
+    useEffect(() => { document.body.style.zoom = "67%"; return () => { document.body.style.zoom = "100%"; }; }, []);
 
     // 1. FILTER OTOMATIS
     const handleFilterChange = useCallback((key, value) => {

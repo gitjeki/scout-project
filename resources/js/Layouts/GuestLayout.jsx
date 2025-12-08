@@ -11,7 +11,7 @@ export default function Guest({ children }) {
                     <img 
                         src="/images/logo.png" 
                         alt="Logo Web" 
-                        className="w-20 h-20 object-contain" 
+                        className="w-40 h-20 object-contain" 
                     />
                     <h1 className="text-2xl font-bold text-gray-800">
                         Portal Lead Scoring

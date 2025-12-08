@@ -7,54 +7,126 @@ import {
     FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle,
     FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
     FaSort, FaSortUp, FaSortDown,
-    FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble, FaSearch, FaRedo
+    FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble, FaSearch, FaRedo,
+    FaClock, FaCalendarAlt, FaGlobeAsia, FaUserTie
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
-// --- COMPONENTS (Helpers) ---
-
-const PerformanceCard = ({ title, value, unit, subtext, icon: Icon, theme }) => {
-    const themes = {
-        red: { bg: 'bg-red-50', border: 'border-red-100', textTitle: 'text-gray-700', textVal: 'text-red-600', iconBg: 'bg-white', iconColor: 'text-red-500' },
-        blue: { bg: 'bg-blue-50', border: 'border-blue-100', textTitle: 'text-gray-700', textVal: 'text-blue-600', iconBg: 'bg-white', iconColor: 'text-blue-500' },
-        green: { bg: 'bg-green-50', border: 'border-green-100', textTitle: 'text-gray-700', textVal: 'text-green-600', iconBg: 'bg-white', iconColor: 'text-green-500' },
+// ==========================================
+// 1. COMPONENT: DASHBOARD SECTION (SAMA SEPERTI PROSPECT.JSX + GLOBAL)
+// ==========================================
+const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, userName }) => {
+    
+    // --- 1. Helper Warna (SAMA PERSIS DENGAN PROSPECT.JSX) ---
+    const getBorderColor = (code) => {
+        const colors = {
+            'CONTACTED': 'border-blue-200 bg-blue-50 text-blue-700',
+            'INTERESTED': 'border-purple-200 bg-purple-50 text-purple-700',
+            'ACCEPTED': 'border-green-200 bg-green-50 text-green-700',
+            'REFUSED': 'border-red-200 bg-red-50 text-red-700',
+            'NO_ANSWER': 'border-orange-200 bg-orange-50 text-orange-700',
+            'INVALID_NUMBER': 'border-gray-200 bg-gray-50 text-gray-700',
+        };
+        return colors[code] || 'border-gray-200 bg-gray-50 text-gray-600';
     };
-    const t = themes[theme] || themes.blue;
-    return (
-        <div className={`p-6 rounded-xl border ${t.border} ${t.bg} shadow-sm relative overflow-hidden transition-transform hover:scale-[1.01]`}>
-            <div className="flex justify-between items-start mb-4">
-                <h3 className={`text-sm font-bold ${t.textTitle}`}>{title}</h3>
-                <div className={`p-2 rounded-full shadow-sm ${t.iconBg} ${t.iconColor}`}><Icon size={16} /></div>
-            </div>
-            <div className="flex items-baseline gap-1 mb-2">
-                <span className={`text-4xl font-extrabold ${t.textVal}`}>{value}</span>
-                <span className="text-sm font-medium text-gray-500">{unit}</span>
-            </div>
-            <p className="text-xs text-gray-500 font-medium">{subtext}</p>
-        </div>
-    );
-};
 
-const PipelineStatusCard = ({ title, count, description, statusType }) => {
-    const config = {
-        'CONTACTED': { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-600', defaultDesc: 'Sudah ditelepon, belum ada keputusan' },
-        'INTERESTED': { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-600', defaultDesc: 'Nasabah tertarik, butuh follow up' },
-        'ACCEPTED': { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', defaultDesc: 'Nasabah setuju mendaftar' },
-        'REFUSED': { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', defaultDesc: 'Nasabah menolak penawaran' },
-        'NO_ANSWER': { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', defaultDesc: 'Telepon tidak diangkat berkali-kali' },
-        'INVALID_NUMBER': { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', defaultDesc: 'Nomor telepon salah/tidak terdaftar' }
-    };
-    const style = config[title.toUpperCase().replace(' ', '_')] || config[title.toUpperCase()] || { bg: 'bg-white', border: 'border-gray-200', text: 'text-gray-700', defaultDesc: 'Status prospek' };
     return (
-        <div className={`p-4 rounded-lg border ${style.border} ${style.bg} h-full flex flex-col justify-between shadow-sm`}>
+        <div className="mb-8 space-y-8 animate-fade-in-up">
+            
+            {/* BAGIAN A: KINERJA HARIAN (SAMA SEPERTI GAMBAR 1) */}
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <FaChartPie className="text-orange-500" /> Kinerja Harian: {userName}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Card 1: Target Prioritas */}
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-red-600 font-bold mb-1">Target Prioritas (New)</p>
+                            <h2 className="text-3xl font-bold text-red-700">{personalStats?.hot_leads || 0}</h2>
+                            <p className="text-[10px] text-red-400 mt-1">New Assignment</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-full text-red-500 shadow-sm"><FaFire size={20}/></div>
+                    </div>
+
+                    {/* Card 2: Calls */}
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-blue-600 font-bold mb-1">Aktivitas Anda</p>
+                            <h2 className="text-3xl font-bold text-blue-700">{personalStats?.calls_today || 0}</h2>
+                            <p className="text-[10px] text-blue-400 mt-1">Call tersimpan hari ini</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-full text-blue-500 shadow-sm"><FaCalendarAlt size={20}/></div>
+                    </div>
+
+                    {/* Card 3: Duration */}
+                    <div className="bg-green-50 border border-green-100 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-green-600 font-bold mb-1">Durasi Bicara</p>
+                            <h2 className="text-3xl font-bold text-green-700">{personalStats?.duration_min || 0}</h2>
+                            <p className="text-[10px] text-green-400 mt-1">Total menit hari ini</p>
+                        </div>
+                        <div className="p-3 bg-white rounded-full text-green-500 shadow-sm"><FaClock size={20}/></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* BAGIAN B: PERSONAL PIPELINE (LOGIC DARI PROSPECT.JSX) */}
             <div>
-                <h4 className={`text-[11px] font-bold uppercase tracking-wider ${style.text} mb-2`}>{title}</h4>
-                <div className="text-3xl font-extrabold text-gray-800 mb-2">{count}</div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-blue-500 pl-2">
+                    <FaUserTie /> Personal Pipeline Overview (Milik Anda)
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    {personalPipeline && personalPipeline.length > 0 ? (
+                        personalPipeline.map((stat) => (
+                            <div key={stat.code} className={`border rounded-lg p-3 flex flex-col justify-between h-24 shadow-sm transition hover:shadow-md hover:-translate-y-1 ${getBorderColor(stat.code)}`}>
+                                <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">{stat.code.replace('_', ' ')}</p>
+                                <div>
+                                    <h4 className="text-2xl font-bold">{stat.count}</h4>
+                                    <p className="text-[9px] leading-tight opacity-80 mt-1 truncate">{stat.desc || 'Status Prospek'}</p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-6 py-6 text-center text-gray-400 text-xs border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                            Anda belum memiliki data prospek di pipeline pribadi. (Cek halaman Prospek untuk memastikan data)
+                        </div>
+                    )}
+                </div>
             </div>
-            <p className="text-[10px] text-gray-500 leading-tight">{description || style.defaultDesc}</p>
+
+            {/* BAGIAN C: GLOBAL PIPELINE (Logic Snapshot / Tim) */}
+            <div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-orange-500 pl-2">
+                    <FaGlobeAsia /> Global Pipeline (Seluruh Tim)
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    {globalPipeline && globalPipeline.length > 0 ? (
+                        globalPipeline.map((stat) => (
+                            <div key={stat.code} className={`border rounded-lg p-3 flex flex-col justify-between h-24 shadow-sm bg-white border-gray-200 text-gray-600`}>
+                                <div className="flex justify-between items-start">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{stat.code.replace('_', ' ')}</p>
+                                    <FaChartPie className="text-gray-300" size={10} />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-bold text-gray-800">{stat.count}</h4>
+                                    <p className="text-[9px] text-gray-400 mt-1">Total Global</p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-6 py-6 text-center text-gray-400 text-xs border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                            Belum ada data global pipeline tersedia.
+                        </div>
+                    )}
+                </div>
+            </div>
+
         </div>
     );
 };
+
+// --- COMPONENTS (Helpers - Existing) ---
 
 const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
     let colors = {
@@ -399,7 +471,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 
 // --- MAIN PAGE COMPONENT ---
 
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, pipelineStats, formTemplate }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, personalPipelineStats, globalPipelineStats, formTemplate }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const isSales = auth.user.role === 'sales';
@@ -613,29 +685,19 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 statusName={deleteModalState.statusName}
             />
 
-            {isSales && personalStats && pipelineStats && (
-                <div className="mb-8 space-y-8 animate-fade-in-up">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-gray-500"><FaChartLine /><h3 className="text-sm font-bold uppercase tracking-wider">Kinerja Anda Hari Ini</h3></div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <PerformanceCard title="Target Prioritas" value={personalStats.hot_leads} unit="Prospek" subtext="NEW  & High Prioritas" icon={FaFire} theme="red" />
-                            <PerformanceCard title="Aktivitas Anda" value={personalStats.calls_today} unit="Call" subtext="Log tersimpan hari ini" icon={FaRegCalendarAlt} theme="blue" />
-                            <PerformanceCard title="Durasi Bicara" value={personalStats.duration_min} unit="Menit" subtext="Total durasi telepon hari ini" icon={FaStopwatch} theme="green" />
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-gray-500"><FaProjectDiagram /><h3 className="text-sm font-bold uppercase tracking-wider">Global Pipeline Overview</h3></div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            {pipelineStats.length > 0 ? (
-                                pipelineStats.map((stat, idx) => ( <PipelineStatusCard key={idx} title={stat.code} count={stat.count} statusType={stat.code} /> ))
-                            ) : (
-                                <div className="col-span-6 text-center text-gray-400 text-sm py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">Belum ada data pipeline hari ini.</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            {/* --- SALES DASHBOARD SECTION --- */}
+            {isSales && (
+                <DashboardSection 
+                    personalStats={personalStats}
+                    // IMPORTANT: Ini harus dikirim dari backend, jika belum ada ganti dengan []
+                    personalPipeline={personalPipelineStats || []} 
+                    // IMPORTANT: Menggunakan prop baru untuk Global
+                    globalPipeline={globalPipelineStats || []}
+                    userName={auth.user.name}
+                />
             )}
 
+            {/* --- ADMIN DASHBOARD SECTION --- */}
             {isAdmin && (
                 <div className="mb-8">
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FaChartPie/> Data Summary (System)</h3>
@@ -648,6 +710,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 </div>
             )}
 
+            {/* --- ADMIN & TABLE SECTION (UNCHANGED) --- */}
             {isAdmin && (
                 <>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -690,7 +753,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             >
                                 <FaRedo /> <span className="hidden md:inline text-xs font-bold">Reset</span>
                             </button>
-                                                </div>
+                                                                </div>
 
                     <div className="flex gap-2 w-full md:w-auto justify-end">
                         <button 
