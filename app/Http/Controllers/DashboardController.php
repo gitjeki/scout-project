@@ -122,9 +122,21 @@ class DashboardController extends Controller
         }
 
         // --- 4. Query Data Tabel ---
-        // UPDATE: Load juga relation user dari latestScore untuk kolom Scored By
         $query = Prospect::with(['status', 'latestScore.user'])
             ->readyForPrediction(); 
+
+        // --FILTER SEARCH ID ---
+       if ($request->has('search_id') && $request->search_id != '') {
+        // Validasi: Jika bukan angka, kembalikan error
+        if (!is_numeric($request->search_id)) {
+            return to_route('dashboard', $request->except(['search_id']))
+                ->with('error', 'Exception: ID Pencarian harus berupa angka valid (Numeric)!');
+        }
+
+        $query->where('id', $request->search_id);
+    } if ($request->has('search_id') && $request->search_id != '') {
+            $query->where('id', $request->search_id);
+        }
 
         // Filter Status
         if ($request->has('status') && $request->status != '') {
@@ -178,7 +190,6 @@ class DashboardController extends Controller
                     'scored_at'      => $item->latestScore 
                                             ? Carbon::parse($item->latestScore->scored_at)->format('d M Y H:i') 
                                             : null,
-                    // UPDATE: Tambahkan scored_by
                     'scored_by'      => $item->latestScore && $item->latestScore->user 
                                             ? $item->latestScore->user->name 
                                             : '-',
@@ -199,7 +210,8 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction']),
+            // Tambahkan search_id ke filters agar frontend ingat state-nya
+            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction', 'search_id']),
             'stats'         => $stats,
             'personalStats' => $personalStats, 
             'pipelineStats' => $pipelineStats,
@@ -237,18 +249,23 @@ class DashboardController extends Controller
      */
     public function store(Request $request)
     {
+        // --- VALIDASI MANUAL INPUT ---
         $validated = $request->validate([
-            'age'            => 'required|numeric',
+            'age'            => 'required|numeric|min:1', // Harus positif
             'job'            => 'required|string',
             'education'      => 'required|string',
             'month'          => 'required|string',
-            'duration'       => 'required|numeric',
-            'campaign'       => 'required|numeric',
+            'duration'       => 'required|numeric|min:1', // Harus positif
+            'campaign'       => 'required|numeric|min:1', // Harus positif
             'poutcome'       => 'required|string',
-            'cons_price_idx' => 'required|numeric',
-            'cons_conf_idx'  => 'required|numeric',
-            'euribor3m'      => 'required|numeric',
-            'nr_employed'    => 'required|numeric',
+            
+            // Ekonomi: not_in:0 (Boleh negatif/desimal, tapi tidak boleh 0 pas)
+            'cons_price_idx' => 'required|numeric|not_in:0', 
+            'cons_conf_idx'  => 'required|numeric|not_in:0',
+            'euribor3m'      => 'required|numeric|not_in:0',
+            
+            // Employed: min:1 (Harus positif)
+            'nr_employed'    => 'required|numeric|min:1',
         ]);
 
         DB::beginTransaction();
@@ -273,23 +290,27 @@ class DashboardController extends Controller
 
     /**
      * Update Data
-     * UPDATE KHUSUS: Menghapus score saat data diedit agar bisa diprediksi ulang.
      */
     public function update(Request $request, $id)
     {
+        // --- VALIDASI EDIT DATA ---
         $validated = $request->validate([
-            'age'            => 'numeric|nullable',
+            'age'            => 'numeric|nullable|min:1',
             'job'            => 'string|nullable',
             'education'      => 'string|nullable',
             'assigned_to'    => 'numeric|nullable|exists:users,id', 
             'month'          => 'string|nullable',
-            'duration'       => 'numeric|nullable',
-            'campaign'       => 'numeric|nullable',
+            'duration'       => 'numeric|nullable|min:1',
+            'campaign'       => 'numeric|nullable|min:1',
             'poutcome'       => 'string|nullable',
-            'cons_price_idx' => 'numeric|nullable',
-            'cons_conf_idx'  => 'numeric|nullable',
-            'euribor3m'      => 'numeric|nullable',
-            'nr_employed'    => 'numeric|nullable',
+            
+            // Ekonomi: not_in:0 (Boleh negatif/desimal, tapi tidak boleh 0 pas)
+            'cons_price_idx' => 'numeric|nullable|not_in:0',
+            'cons_conf_idx'  => 'numeric|nullable|not_in:0',
+            'euribor3m'      => 'numeric|nullable|not_in:0',
+            
+            // Employed: min:1 (Harus positif)
+            'nr_employed'    => 'numeric|nullable|min:1',
         ]);
 
         DB::beginTransaction();
@@ -298,9 +319,6 @@ class DashboardController extends Controller
             
             $prospect->update($validated);
             
-            // --- FIX: HAPUS SCORE LAMA ---
-            // Ini akan membuat field score di frontend menjadi null, 
-            // sehingga bisa diprediksi ulang oleh sistem.
             if ($prospect->scores()->exists()) {
                 $prospect->scores()->delete();
             }
@@ -442,6 +460,18 @@ class DashboardController extends Controller
             $imported = 0;
             $skipped  = 0;
 
+            // --- FILTER KOLOM YANG TIDAK BOLEH 0 ---
+            // Jika kolom ini bernilai 0 di CSV, akan diset NULL agar masuk Data Control
+            $nonZeroColumns = [
+                'age', 
+                'duration', 
+                'campaign', 
+                'nr_employed',    // min 1
+                'cons_price_idx', // not 0
+                'cons_conf_idx',  // not 0
+                'euribor3m'       // not 0
+            ];
+
             DB::beginTransaction();
 
             foreach ($csv as $rowNum => $row) {
@@ -451,7 +481,16 @@ class DashboardController extends Controller
                 foreach ($headerIndexes as $dbColumn => $csvIndex) {
                     if (array_key_exists($csvIndex, $row)) {
                         $value = trim($row[$csvIndex]);
-                        $data[$dbColumn] = ($value === '' || strtolower($value) === 'unknown') ? null : $value;
+                        
+                        // --- LOGIKA FILTER: Null/Empty OR (Value 0 AND Restricted Column) ---
+                        if ($value === '' || strtolower($value) === 'unknown') {
+                            $data[$dbColumn] = null;
+                        } elseif ($value == '0' && in_array($dbColumn, $nonZeroColumns)) {
+                            // Paksa NULL agar masuk Data Control
+                            $data[$dbColumn] = null; 
+                        } else {
+                            $data[$dbColumn] = $value;
+                        }
                     }
                 }
 
@@ -475,7 +514,7 @@ class DashboardController extends Controller
             DB::commit();
             
             if ($imported > 0) {
-                return back()->with('success', "Import selesai: {$imported} data berhasil masuk.");
+                return back()->with('success', "Import selesai: {$imported} data berhasil masuk. Data bernilai 0 atau kosong masuk ke Data Control.");
             } else {
                 return back()->with('error', "Import gagal. Tidak ada data valid yang ditemukan.");
             }
@@ -488,7 +527,6 @@ class DashboardController extends Controller
 
     /**
      * Run Predictions
-     * UPDATE KHUSUS: Cek ketersediaan data sebelum kirim ke Python.
      */
     public function runPredictions(Request $request)
     {
@@ -499,8 +537,7 @@ class DashboardController extends Controller
         ini_set('max_execution_time', 0); 
         set_time_limit(0); 
 
-        // --- FIX: CEK DATA PENDING ---
-        // Jika count = 0, jangan panggil Python (mencegah error API).
+        // Cek Data Pending
         $pendingQuery = Prospect::readyForPrediction()->whereDoesntHave('scores');
         $pendingCount = $pendingQuery->count();
 
@@ -535,7 +572,6 @@ class DashboardController extends Controller
             if (empty($payload)) return;
 
             try {
-                // Pastikan URL Microservice Python Benar
                 $response = Http::timeout(300)->post('http://127.0.0.1:8001/predict_batch', [
                     'data' => $payload
                 ]);
@@ -558,7 +594,6 @@ class DashboardController extends Controller
                                     'model_version'     => 'decision_tree_v1',
                                     'score_value'       => $prob,
                                     'priority'          => $priority,
-                                    // UPDATE: Menyimpan ID user yang sedang login
                                     'scored_by_user_id' => auth()->id() ?? null,
                                     'scored_at'         => now(),
                                 ]
@@ -581,16 +616,13 @@ class DashboardController extends Controller
             }
         });
 
-        // --- FIX: HASIL NOTIFIKASI ---
         if ($totalProcessed > 0) {
             return redirect()->route('dashboard')
                 ->with('success', "Proses selesai. {$totalProcessed} data berhasil diprediksi.");
         } elseif ($totalFailed > 0) {
-            // Ini hanya muncul jika ada data TAPI gagal connect ke Python
             return redirect()->route('dashboard')
                 ->with('error', "Gagal memproses prediksi. Pastikan service Python (Flask) berjalan.");
         } else {
-            // Fallback (seharusnya tidak terpanggil karena ada cek pendingCount di atas)
             return redirect()->route('dashboard')
                 ->with('success', "Data sudah up to date.");
         }

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaKey, FaSignOutAlt, 
-    FaTasks, FaAngleDown, FaUserTag, FaExclamationTriangle 
+    FaTasks, FaAngleDown, FaUserTag, FaExclamationTriangle,
+    FaClipboardList // <--- Import Icon Baru
 } from 'react-icons/fa';
 import Dropdown from '@/Components/Dropdown';
 
@@ -11,22 +12,19 @@ export default function SidebarLayout({ children, header }) {
     const user = auth.user;
     
     // --- DEFINISI MENU ---
-    // Pastikan nama 'route' di sini SAMA PERSIS dengan ->name('...') di web.php
     const adminMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
         
-        // --- MENU BARU: DATA CONTROL ---
         { name: 'Data Control', route: 'data-control.index', icon: <FaExclamationTriangle /> },
         
-        // Pastikan route 'users.index' ada di web.php
+        { name: 'Penugasan', route: 'assignments.index', icon: <FaClipboardList /> },
+        
         { name: 'Pengelolaan Akun', route: 'users.index', icon: <FaUsers /> },
-        // Pastikan route 'admin.reset.index' ada di web.php
         { name: 'Reset Password', route: 'admin.reset.index', icon: <FaKey /> },
     ];
 
     const salesMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
-        // Mengarah ke tabel khusus sales
         { name: 'Daftar Prospek', route: 'sales.prospects.index', icon: <FaTasks /> },
     ];
 
@@ -62,7 +60,7 @@ export default function SidebarLayout({ children, header }) {
                     ))}
                 </nav>
 
-                {/* Tombol Logout di Bawah Sidebar */}
+                {/* Tombol Logout */}
                 <div className="p-4 border-t border-gray-200 bg-[#FDF3E7]">
                      <Link
                         method="post"
@@ -78,13 +76,12 @@ export default function SidebarLayout({ children, header }) {
 
             {/* --- KONTEN KANAN --- */}
             <div className="flex-1 ml-64 flex flex-col min-w-0">
-                {/* Top Header (User Profile + Dropdown) */}
+                {/* Top Header */}
                 <header className="bg-white shadow-sm h-16 flex items-center justify-between px-6 sticky top-0 z-20 w-full">
                     <h2 className="font-semibold text-xl text-gray-800 leading-tight truncate">
                         {header}
                     </h2>
                     
-                    {/* User Dropdown */}
                     <div className="flex items-center ml-4">
                         <Dropdown>
                             <Dropdown.Trigger>
@@ -95,8 +92,6 @@ export default function SidebarLayout({ children, header }) {
                                         </div>
                                         <div className="text-xs text-gray-500 capitalize">{user.role}</div>
                                     </div>
-                                    
-                                    {/* Avatar */}
                                     <div className="h-9 w-9 rounded-full bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-orange-600 font-bold overflow-hidden">
                                         {user.profile_photo_url ? (
                                             <img src={user.profile_photo_url} alt={user.name} className="h-full w-full object-cover" />
@@ -104,25 +99,19 @@ export default function SidebarLayout({ children, header }) {
                                             <FaUserTag />
                                         )}
                                     </div>
-                                    
                                     <FaAngleDown className="text-gray-400 group-hover:text-orange-500 transition" />
                                 </button>
                             </Dropdown.Trigger>
 
                             <Dropdown.Content align="right" width="48">
-                                <Dropdown.Link href={route('profile.edit')}>
-                                    Profile
-                                </Dropdown.Link>
+                                <Dropdown.Link href={route('profile.edit')}>Profile</Dropdown.Link>
                                 <div className="border-t border-gray-100" />
-                                <Dropdown.Link href={route('logout')} method="post" as="button">
-                                    Log Out
-                                </Dropdown.Link>
+                                <Dropdown.Link href={route('logout')} method="post" as="button">Log Out</Dropdown.Link>
                             </Dropdown.Content>
                         </Dropdown>
                     </div>
                 </header>
 
-                {/* Main Content Area */}
                 <main className="p-6">
                     {children}
                 </main>

@@ -29,17 +29,45 @@ const ControlRow = ({ item }) => {
         }
     };
 
+    // --- BARU: Handle Key Down (Enter & Escape) ---
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Mencegah perilaku default jika ada form wrapping
+            handleSave();
+        } else if (e.key === 'Escape') {
+            setIsEditing(false);
+            setValues({ ...item }); // Reset nilai ke awal
+        }
+    };
+
     const renderCell = (name, type = "text", width = "w-24", options = null) => {
         const isNull = item[name] === null || item[name] === '';
         
         if (isEditing) {
             if (options) {
-                return <select name={name} value={values[name] || ''} onChange={handleChange} className={`text-xs border-gray-300 rounded px-1 py-1 shadow-sm ${width} ${isNull ? 'border-red-500 bg-red-50' : ''}`}>
-                    <option value="">-- Pilih --</option>
-                    {options.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
-                </select>;
+                return (
+                    <select 
+                        name={name} 
+                        value={values[name] || ''} 
+                        onChange={handleChange} 
+                        onKeyDown={handleKeyDown} // <--- Added here
+                        className={`text-xs border-gray-300 rounded px-1 py-1 shadow-sm ${width} ${isNull ? 'border-red-500 bg-red-50' : ''}`}
+                    >
+                        <option value="">-- Pilih --</option>
+                        {options.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+                    </select>
+                );
             }
-            return <input type={type} name={name} value={values[name] || ''} onChange={handleChange} className={`text-xs border-gray-300 rounded px-2 py-1 shadow-sm ${width} ${isNull ? 'border-red-500 bg-red-50' : ''}`} />;
+            return (
+                <input 
+                    type={type} 
+                    name={name} 
+                    value={values[name] || ''} 
+                    onChange={handleChange} 
+                    onKeyDown={handleKeyDown} // <--- Added here
+                    className={`text-xs border-gray-300 rounded px-2 py-1 shadow-sm ${width} ${isNull ? 'border-red-500 bg-red-50' : ''}`} 
+                />
+            );
         }
         
         if (isNull) {
@@ -53,8 +81,8 @@ const ControlRow = ({ item }) => {
             <td className="px-4 py-3 text-center sticky left-0 bg-white shadow-sm z-10 w-24 border-r border-gray-100">
                 {isEditing ? (
                     <div className="flex justify-center items-center gap-2">
-                        <button onClick={handleSave} className="text-green-600 p-1 hover:bg-green-100 rounded" title="Simpan"><FaSave /></button>
-                        <button onClick={() => { setIsEditing(false); setValues({...item}); }} className="text-red-500 p-1 hover:bg-red-100 rounded" title="Batal"><FaTimes /></button>
+                        <button onClick={handleSave} className="text-green-600 p-1 hover:bg-green-100 rounded" title="Simpan (Enter)"><FaSave /></button>
+                        <button onClick={() => { setIsEditing(false); setValues({...item}); }} className="text-red-500 p-1 hover:bg-red-100 rounded" title="Batal (Esc)"><FaTimes /></button>
                     </div>
                 ) : (
                     <div className="flex justify-center items-center gap-2">
@@ -78,13 +106,11 @@ const ControlRow = ({ item }) => {
         </tr>
     );
 };
-
 // --- MAIN PAGE ---
 export default function DataControl({ prospects }) {
     
-    // Zoom Otomatis 60%
     useEffect(() => { 
-        document.body.style.zoom = "60%"; 
+        document.body.style.zoom = "67%"; 
         return () => { 
             document.body.style.zoom = "100%"; 
         }; 

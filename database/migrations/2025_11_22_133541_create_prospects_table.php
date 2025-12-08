@@ -31,14 +31,15 @@ return new class extends Migration {
                 // === Foreign Keys ===
                 $table->unsignedBigInteger('prospect_status_id');
                 $table->unsignedBigInteger('created_by_user_id')->nullable();
+                
+                // [BARU] Kolom untuk Penugasan Sales
+                $table->unsignedBigInteger('assigned_to')->nullable(); 
 
                 // === Timestamps ===
                 $table->timestampTz('created_at')->useCurrent();
                 $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
 
                 // === Constraints ===
-                // Pastikan tabel prospect_statuses ada sebelum ini dijalankan. 
-                // Jika error foreign key, berarti tabel status belum dibuat.
                 if (Schema::hasTable('prospect_statuses')) {
                     $table->foreign('prospect_status_id', 'fk_prospects_status')
                           ->references('id')->on('prospect_statuses');
@@ -47,6 +48,12 @@ return new class extends Migration {
                 if (Schema::hasTable('users')) {
                     $table->foreign('created_by_user_id', 'fk_prospects_creator')
                           ->references('id')->on('users');
+
+                    // [BARU] Foreign Key untuk assigned_to
+                    // onDelete('set null') artinya jika sales dihapus, data prospek tidak hilang (hanya jadi unassigned)
+                    $table->foreign('assigned_to', 'fk_prospects_assigned')
+                          ->references('id')->on('users')
+                          ->onDelete('set null');
                 }
             });
         }

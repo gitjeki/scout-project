@@ -7,11 +7,11 @@ import {
     FaDatabase, FaCalendarDay, FaChartPie, FaExclamationTriangle,
     FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
     FaSort, FaSortUp, FaSortDown,
-    FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble
+    FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble, FaSearch, FaRedo
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
-// --- COMPONENTS (Tidak Berubah) ---
+// --- COMPONENTS (Helpers) ---
 
 const PerformanceCard = ({ title, value, unit, subtext, icon: Icon, theme }) => {
     const themes = {
@@ -307,13 +307,46 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
     const [isEditing, setIsEditing] = useState(false);
     const [values, setValues] = useState({ ...item });
     const dropdowns = template?.dropdowns || { jobs: [], education: [] };
+    
     const handleChange = (e) => setValues({ ...values, [e.target.name]: e.target.value });
+    
+    // --- Logic Simpan ---
     const handleSave = () => { router.put(route('dashboard.update', item.id), values, { preserveScroll: true, onSuccess: () => setIsEditing(false), }); };
+    
     const handleCancel = () => { setValues({ ...item }); setIsEditing(false); };
+
+    // --- LOGIC ENTER TO SAVE ---
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        }
+    };
+
     const renderCell = (name, type = "text", width = "w-24", options = null) => {
         if (isEditing) {
-            if (options) return <select name={name} value={values[name]} onChange={handleChange} className={`text-xs border-gray-300 rounded px-1 py-1 shadow-sm ${width}`}>{options.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}</select>;
-            return <input type={type} name={name} value={values[name]} onChange={handleChange} className={`text-xs border-gray-300 rounded px-2 py-1 shadow-sm ${width}`} />;
+            if (options) {
+                return (
+                    <select 
+                        name={name} 
+                        value={values[name]} 
+                        onChange={handleChange} 
+                        onKeyDown={handleKeyDown} // Trigger save on Enter
+                        className={`text-xs border-gray-300 rounded px-1 py-1 shadow-sm ${width}`}
+                    >
+                        {options.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+                    </select>
+                );
+            }
+            return (
+                <input 
+                    type={type} 
+                    name={name} 
+                    value={values[name]} 
+                    onChange={handleChange} 
+                    onKeyDown={handleKeyDown} // Trigger save on Enter
+                    className={`text-xs border-gray-300 rounded px-2 py-1 shadow-sm ${width}`} 
+                />
+            );
         }
         return <span className="text-gray-700">{item[name]}</span>;
     };
@@ -326,7 +359,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
             <td className="px-4 py-3 text-center sticky left-10 bg-white hover:bg-gray-50 z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-24">
                 {isEditing ? (
                     <div className="flex justify-center items-center gap-1">
-                        <button onClick={handleSave} className="text-green-600 p-1 hover:bg-green-100 rounded"><FaSave /></button>
+                        <button onClick={handleSave} className="text-green-600 p-1 hover:bg-green-100 rounded" title="Save (Enter)"><FaSave /></button>
                         <button onClick={handleCancel} className="text-red-500 p-1 hover:bg-red-100 rounded"><FaTimes /></button>
                     </div>
                 ) : (
@@ -358,7 +391,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
             <td className="px-4 py-3">{renderCell('nr_employed', 'number', 'w-20')}</td>
             <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{item.scored_at || '-'}</td>
             
-            {/* UPDATE: Kolom Baru Scored By */}
+            <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap font-medium text-blue-600">{item.assigned_to}</td>
             <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{item.scored_by || '-'}</td>
         </tr>
     );
@@ -374,29 +407,28 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [isConfigModalOpen, setConfigModalOpen] = useState(false); 
     
+    // --- STATE FILTER ---
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
     const [filterPriority, setFilterPriority] = useState(filters.priority || '');
+    const [searchId, setSearchId] = useState(filters.search_id || ''); // State untuk Search ID
 
     const [sortField, setSortField] = useState(filters.sort_field || 'id');
     const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
     const [selectedIds, setSelectedIds] = useState([]);
     
-    // STATE BARU: Untuk Pilih Semua Data (Filtered)
     const [selectAllMatching, setSelectAllMatching] = useState(false);
-    
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, type: '', targetId: null });
     const [isDeleting, setIsDeleting] = useState(false); 
 
     useEffect(() => { 
         setSelectedIds([]); 
-        setSelectAllMatching(false); // Reset pilihan semua saat filter/page berubah
-    }, [filterStatus, filterPriority, sortField, sortDirection, prospects.current_page]);
+        setSelectAllMatching(false); 
+    }, [filterStatus, filterPriority, sortField, sortDirection, prospects.current_page, searchId]);
     
     const handleFilterChange = (key, value) => {
         let newStatus = key === 'status' ? value : filterStatus;
         let newPriority = key === 'priority' ? value : filterPriority;
         
-        // LOGIC BARU: Reset sort jika priority jadi 'Semua'
         let newSortField = sortField;
         let newSortDirection = sortDirection;
 
@@ -413,11 +445,31 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), { 
             status: newStatus, 
             priority: newPriority,
+            search_id: searchId, // Sertakan search_id
             sort_field: newSortField, 
             sort_direction: newSortDirection 
         }, { preserveState: true, replace: true });
     };
 
+    // --- HANDLE SEARCH ID (Tekan Enter) ---
+    const handleSearchId = (e) => {
+        e.preventDefault();
+        router.get(route('dashboard'), { 
+            status: filterStatus, 
+            priority: filterPriority,
+            search_id: searchId, // Kirim ID
+            sort_field: sortField, 
+            sort_direction: sortDirection 
+        }, { preserveState: true, replace: true });
+    };
+    // --- HANDLE RESET FILTER ---
+    const handleResetFilters = () => {
+        setFilterStatus('');
+        setFilterPriority('');
+        setSearchId('');
+        // Reset ke halaman dashboard tanpa parameter query
+        router.get(route('dashboard'));
+    };
     const handleSort = (field) => {
         let newDirection = 'asc';
         if (sortField === field) {
@@ -429,6 +481,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), {
             status: filterStatus,
             priority: filterPriority,
+            search_id: searchId,
             sort_field: field,
             sort_direction: newDirection
         }, { preserveState: true });
@@ -438,12 +491,11 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         if (sortField !== field) return <FaSort className="inline ml-1 text-gray-400 text-[10px]" />;
         return sortDirection === 'asc' ? <FaSortUp className="inline ml-1 text-blue-600" /> : <FaSortDown className="inline ml-1 text-blue-600" />;
     };
-
+        
     const currentPageIds = prospects.data.map(p => p.id);
     const isAllCurrentPageSelected = !selectAllMatching && currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.includes(id));
 
     const handleSelectAllCurrentPage = (e) => {
-        // Jika sedang mode Select All Matching, matikan dulu
         if (selectAllMatching) {
             setSelectAllMatching(false);
             setSelectedIds([]);
@@ -465,19 +517,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             setSelectedIds([]);
         } else {
             setSelectAllMatching(true);
-            setSelectedIds([]); // Clear individual IDs karena kita pakai mode 'ALL'
+            setSelectedIds([]); 
         }
     };
 
     const handleSelectRow = (id) => {
-        // Jika sedang Select All Matching, user mencoba uncheck satu row -> Matikan mode ALL
         if (selectAllMatching) {
             setSelectAllMatching(false);
-            // Opsional: Logic kompleks untuk "Select All EXCEPT one" bisa ditambahkan disini, 
-            // tapi untuk simpel, kita reset saja.
             return;
         }
-
         if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(sid => sid !== id));
         else setSelectedIds([...selectedIds, id]);
     };
@@ -488,10 +536,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
     const requestDeleteSelection = () => {
         if (selectAllMatching) {
-             // Logic Hapus Semua Data (Filtered)
              setDeleteModalState({ isOpen: true, type: 'all_filtered', statusName: filterStatus, count: prospects.total });
         } else {
-             // Logic Hapus Selection Biasa
              setDeleteModalState({ isOpen: true, type: 'selection', count: selectedIds.length });
         }
     };
@@ -514,7 +560,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             router.post(route('dashboard.bulk-destroy'), {
                 type: type,
                 ids: currentSelection, 
-                status: filterStatus // Kirim status agar backend tau apa yg dihapus jika type=all_filtered
+                status: filterStatus 
             }, {
                 preserveScroll: true,
                 onFinish: () => {
@@ -542,7 +588,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     
     const submitPredict = (e) => { e.preventDefault(); postPredict(route('dashboard.run-predictions'), { preserveScroll: true }); };
 
-    useEffect(() => { document.body.style.zoom = "60%"; return () => { document.body.style.zoom = "100%"; }; }, []);
+    useEffect(() => { document.body.style.zoom = "67%"; return () => { document.body.style.zoom = "100%"; }; }, []);
 
     return (
         <SidebarLayout header={isSales ? "Sales Dashboard" : "Administrator Dashboard"}>
@@ -606,6 +652,21 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 <>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                        
+                        {/* INPUT SEARCH BY ID */}
+                        <form onSubmit={handleSearchId} className="flex items-center gap-2 w-full md:w-auto">
+                             <div className="relative">
+                                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Cari ID..." 
+                                    value={searchId}
+                                    onChange={(e) => setSearchId(e.target.value)}
+                                    className="pl-9 pr-3 py-2 border-gray-300 rounded text-sm w-full md:w-32 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                             </div>
+                        </form>
+
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFilter className="text-gray-400" />
                             <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500">
@@ -622,10 +683,16 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                 <option value="3">Low (3)</option>
                             </select>
                         </div>
-                    </div>
+                        <button 
+                                onClick={handleResetFilters}
+                                title="Reset Filter"
+                                className="px-3 py-2 bg-white border border-gray-300 text-gray-500 rounded hover:bg-gray-100 hover:text-blue-600 transition flex items-center justify-center gap-2"
+                            >
+                                <FaRedo /> <span className="hidden md:inline text-xs font-bold">Reset</span>
+                            </button>
+                                                </div>
 
                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                        {/* TOMBOL PILIH SEMUA (FILTERED) */}
                         <button 
                             onClick={toggleSelectAllMatching}
                             className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-bold transition border
@@ -637,7 +704,6 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             <FaCheckDouble /> {selectAllMatching ? 'Batalkan Pilih Semua' : `Pilih Semua ${prospects.total} Data`}
                         </button>
 
-                        {/* TOMBOL HAPUS (DINAMIS) */}
                         <button 
                             onClick={requestDeleteSelection} 
                             disabled={selectedIds.length === 0 && !selectAllMatching}
@@ -718,8 +784,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                     <th className="px-4 py-3">Euribor3m</th>
                                     <th className="px-4 py-3">N.Employed</th>
                                     <th className="px-4 py-3 text-right">Scored At</th>
-                                    
-                                    {/* UPDATE: Header Baru Scored By */}
+                                    <th className="px-4 py-3">Assigned To</th>
                                     <th className="px-4 py-3">Scored By</th>
                                 </tr>
                             </thead>
