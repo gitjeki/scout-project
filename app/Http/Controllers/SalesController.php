@@ -8,7 +8,6 @@ use App\Models\ContactActivity;
 use App\Models\User;
 use App\Models\PredictionScore;
 use App\Models\DailySalesStat;
-use App\Models\DailyPipelineSnapshot;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -27,9 +26,6 @@ class SalesController extends Controller
         ['code' => 'INVALID_NUMBER', 'type' => 'closed_refused',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
     ];
 
-    /**
-     * Halaman Utama Sales (List Prospek)
-     */
     public function index(Request $request)
     {
         if ($request->user()->role !== 'sales') {
@@ -38,43 +34,86 @@ class SalesController extends Controller
 
         $user = $request->user();
         
-        // --- 1. UPDATE & AMBIL STATISTIK DARI DATABASE ---
+        // --- 1. UPDATE STATS ---
         $personalStats = $this->syncAndGetPersonalStats($user->id);
-        $statusStats   = $this->syncAndGetPipelineStats();
+        $statusStats   = $this->syncAndGetPipelineStats($user->id);
 
         // --- 2. LOGIKA FILTER & SORTING ---
-        // UPDATE: Default Sort sekarang 'score' (Highest Score First)
         $sortField = $request->input('sort_field', 'score'); 
         $sortDirection = $request->input('sort_direction', 'desc');
         $searchQuery = $request->input('search');
 
         // Query Utama
         $query = Prospect::query()
-            ->with(['status', 'latestScore', 'latestActivity.telemarketer'])
+            ->select('prospects.*') // PENTING: Force select table utama agar ID tidak ambigu saat Join
+            ->with(['status', 'latestScore', 'assignedAgent']) 
             ->withSum('contactActivities', 'call_duration_sec')
             ->withCount('contactActivities')
-            // Filter: Hanya data lengkap & sudah diprediksi
             ->readyForPrediction() 
-            ->has('latestScore'); 
+            ->has('latestScore');
 
-        // --- Filters ---
+        // [OPTIMASI 1] Filter User di awal agar data yang discan sedikit
+        $query->where('assigned_to', $user->id);
+
+        // --- SEARCH LOGIC (ID Only) ---
+        if ($searchQuery) {
+            if (!ctype_digit((string) $searchQuery)) {
+               $query->where('prospects.id', -1); 
+            } else {
+                $query->where('prospects.id', $searchQuery);
+            }
+        }
+
+        // --- FILTER STATUS ---
         if ($val = $request->input('filter_status')) {
             $query->whereHas('status', fn($q) => $q->where('status_code', $val));
         }
+
+        // --- [PERBAIKAN] FILTER PRIORITAS SUPER CEPAT ---
+        // Mengganti whereHas dengan JOIN agar query tidak berat
         if ($val = $request->input('filter_priority')) {
-            $query->whereHas('latestScore', fn($q) => $q->where('priority', (int)$val));
+            // 1. Subquery untuk mencari ID score terakhir per prospect
+            $latestScoresSub = PredictionScore::select('prospect_id', DB::raw('MAX(id) as max_id'))
+                ->groupBy('prospect_id');
+
+            // 2. Join prospect -> subquery -> real score table
+            $query->joinSub($latestScoresSub, 'latest_score_ids', function ($join) {
+                $join->on('prospects.id', '=', 'latest_score_ids.prospect_id');
+            })
+            ->join('prediction_scores as ps', function ($join) {
+                $join->on('latest_score_ids.max_id', '=', 'ps.id');
+            })
+            ->where('ps.priority', (int)$val);
         }
-        if ($val = $request->input('filter_telemarketer')) {
-            $query->whereHas('latestActivity', fn($q) => $q->where('telemarketer_id', $val));
-        }
+
+        // --- FILTER CHANNEL ---
         if ($val = $request->input('filter_channel')) {
             $query->whereHas('latestActivity', fn($q) => $q->where('contact_channel', $val));
         }
-        if ($searchQuery) {
-            $query->where('id', 'LIKE', "%{$searchQuery}%");
+
+        // --- [PERBAIKAN] FILTER LAST CONTACT (FIX MINGGU INI) ---
+        if ($val = $request->input('filter_last_contact')) {
+            $query->whereHas('latestActivity', function($q) use ($val) {
+                $now = Carbon::now(); // Objek waktu sekarang
+                
+                if ($val === 'today') {
+                    $q->whereDate('contact_at', $now->toDateString());
+                } 
+                elseif ($val === 'this_week') {
+                    // FIX: Gunakan copy() agar $now tidak berubah (mutable issue)
+                    // dan format eksplisit ke database format
+                    $start = $now->copy()->startOfWeek()->format('Y-m-d H:i:s');
+                    $end   = $now->copy()->endOfWeek()->format('Y-m-d H:i:s');
+                    $q->whereBetween('contact_at', [$start, $end]);
+                } 
+                elseif ($val === 'this_month') {
+                    $q->whereMonth('contact_at', $now->month)
+                      ->whereYear('contact_at', $now->year);
+                }
+            });
         }
 
-        // --- Sorting Logic ---
+        // --- SORTING LOGIC ---
         if ($sortField === 'score') {
             $query->orderBy(
                 PredictionScore::select('score_value')
@@ -83,59 +122,66 @@ class SalesController extends Controller
                 $sortDirection
             );
         } elseif ($sortField === 'priority') {
-            $query->orderBy(
-                PredictionScore::select('priority')
-                    ->whereColumn('prospect_id', 'prospects.id')
-                    ->latest('id')->limit(1),
-                $sortDirection
-            );
+            // Jika filter priority aktif, kita sudah join table 'ps', jadi bisa sort langsung
+            if ($request->input('filter_priority')) {
+                $query->orderBy('ps.priority', $sortDirection);
+            } else {
+                // Jika tidak difilter, pakai subquery sort biasa
+                $query->orderBy(
+                    PredictionScore::select('priority')
+                        ->whereColumn('prospect_id', 'prospects.id')
+                        ->latest('id')->limit(1),
+                    $sortDirection
+                );
+            }
         } elseif ($sortField === 'call_count') {
              $query->orderBy('contact_activities_count', $sortDirection);
         } else {
-            // Fallback untuk kolom biasa (id, age, job, dll)
-            $realField = ($sortField === 'prospect_id') ? 'id' : $sortField;
+            $realField = ($sortField === 'prospect_id') ? 'prospects.id' : $sortField;
             $query->orderBy($realField, $sortDirection);
         }
 
-        // Pagination & Transform Data
         $prospects = $query->paginate(20)->withQueryString()
             ->through(fn ($item) => $this->transformProspectData($item));
 
-        $telemarketers = User::where('role', 'sales')->orderBy('name')->get(['id', 'name']);
-        
         return Inertia::render('Prospects', [
             'prospects'       => $prospects,
             'statusOptions'   => self::PROSPECT_STATUSES,
-            'telemarketers'   => $telemarketers,
             'channelOptions'  => ['Phone', 'Email', 'WhatsApp', 'SMS'],
-            'filters'         => $request->all(), // Kirim balik parameter sort ke frontend
+            'filters'         => $request->all(),
             'personalStats'   => $personalStats, 
-            'statusStats'     => $statusStats    
+            'statusStats'     => $statusStats,
+            'user'            => ['id' => $user->id, 'name' => $user->name]     
         ]);
     }
 
-    /**
-     * Mencatat Aktivitas Sales (Log Call/Follow up)
-     */
+    // ... (Sisa fungsi logActivity, transformProspectData, syncStats SAMA DENGAN SEBELUMNYA) ...
+    // Pastikan Anda menyertakan fungsi-fungsi helper tersebut di bawah ini agar controller lengkap.
+    
     public function logActivity(Request $request)
     {
         $validated = $request->validate([
             'prospect_id'       => 'required|exists:prospects,id',
             'status_code'       => 'required|string',
-            'contact_notes'     => 'nullable|string',     
+            'contact_notes'     => 'nullable|string',      
             'call_duration_sec' => 'required|integer', 
             'contact_channel'   => 'required|string',
             'current_page'      => 'nullable|integer',
         ]);
 
+        $prospectCheck = Prospect::where('id', $validated['prospect_id'])
+            ->where('assigned_to', $request->user()->id)
+            ->first();
+
+        if (!$prospectCheck) {
+            return back()->with('error', 'Akses ditolak: Data ini bukan milik Anda.');
+        }
+
         DB::beginTransaction();
         try {
-            $prospect = Prospect::findOrFail($validated['prospect_id']);
-            
-            // Update Status & Deskripsi
+            $prospect = $prospectCheck; 
             $statusId = $this->updateProspectStatusAndDesc($prospect, $validated['status_code'], $validated['contact_notes']);
 
-            // Buat Record Activity
             ContactActivity::create([
                 'prospect_id'        => $prospect->id,
                 'telemarketer_id'    => $request->user()->id,
@@ -146,26 +192,22 @@ class SalesController extends Controller
                 'contact_at'         => now(),
             ]);
 
-            // Re-sync statistik
             $this->syncAndGetPersonalStats($request->user()->id);
-            $this->syncAndGetPipelineStats();
+            $this->syncAndGetPipelineStats($request->user()->id);
 
             DB::commit();
             
             return redirect()->route('sales.prospects.index', [
                 'page' => $validated['current_page'] ?? 1,
-                // Pastikan sort preferences tetap terjaga setelah submit
                 'sort_field' => $request->input('sort_field', 'score'),
                 'sort_direction' => $request->input('sort_direction', 'desc'),
-            ])->with('success', "Log aktivitas #{$prospect->id} tersimpan.");
+            ])->with('success', "Log aktivitas tersimpan.");
 
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
-
-    // --- HELPER FUNCTIONS ---
 
     private function updateProspectStatusAndDesc($prospect, $code, $desc) {
          $prospect->description = $desc;
@@ -194,17 +236,14 @@ class SalesController extends Controller
             'REFUSED' => 'red', 
             'NO_ANSWER' => 'orange', 
             'INVALID_NUMBER' => 'gray', 
-            default => 'gray'
+            'default' => 'gray'
         };
     }
 
     private function transformProspectData($item) {
         $totalDuration = (int) $item->contact_activities_sum_call_duration_sec ?? 0;
         $callCount = $item->contact_activities_count ?? 0;
-
-        $lastContactAt = $item->latestActivity 
-            ? Carbon::parse($item->latestActivity->contact_at)->format('d M H:i') 
-            : '-';
+        $lastContactAt = $item->latestActivity ? Carbon::parse($item->latestActivity->contact_at)->format('d M H:i') : '-';
 
         return [
             'prospect_id' => $item->id, 
@@ -212,7 +251,7 @@ class SalesController extends Controller
             'description' => $item->description, 
             'score' => $item->latestScore?->score_value,
             'priority' => $item->latestScore?->priority, 
-            'telemarketer_name' => $item->latestActivity?->telemarketer?->name ?? '-',
+            'telemarketer_name' => $item->assignedAgent ? $item->assignedAgent->name : '-',
             'contact_channel' => $item->latestActivity?->contact_channel ?? '-',
             'total_duration_sec' => $totalDuration,
             'call_count' => $callCount, 
@@ -223,29 +262,21 @@ class SalesController extends Controller
         ];
     }
 
-    // --- DATABASE STATS SYNC LOGIC ---
-
     private function syncAndGetPersonalStats($userId)
     {
         $today = now()->format('Y-m-d');
-
-        $hotLeads = Prospect::whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
+        $hotLeads = Prospect::where('assigned_to', $userId)
+            ->whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
             ->whereHas('latestScore', fn($q) => $q->where('priority', 1))
             ->count();
-
         $callsMade = ContactActivity::where('telemarketer_id', $userId)
             ->whereDate('contact_at', $today)->count();
-
         $durationSec = ContactActivity::where('telemarketer_id', $userId)
             ->whereDate('contact_at', $today)->sum('call_duration_sec');
 
         $stat = DailySalesStat::updateOrCreate(
             ['user_id' => $userId, 'date' => $today],
-            [
-                'hot_leads_target' => $hotLeads,
-                'calls_made' => $callsMade,
-                'total_duration_sec' => $durationSec
-            ]
+            ['hot_leads_target' => $hotLeads, 'calls_made' => $callsMade, 'total_duration_sec' => $durationSec]
         );
 
         return [
@@ -255,30 +286,20 @@ class SalesController extends Controller
         ];
     }
 
-    private function syncAndGetPipelineStats()
+    private function syncAndGetPipelineStats($userId)
     {
-        $today = now()->format('Y-m-d');
         $allStatuses = collect(self::PROSPECT_STATUSES)->where('code', '!==', 'NEW')->values();
         $formattedStats = [];
-
         foreach ($allStatuses as $status) {
-            $count = Prospect::whereHas('status', function($q) use ($status) {
-                $q->where('status_code', $status['code']);
-            })->count();
-
-            $snapshot = DailyPipelineSnapshot::updateOrCreate(
-                ['date' => $today, 'status_code' => $status['code']],
-                ['count' => $count, 'status_desc' => $status['desc']]
-            );
-
+            $count = Prospect::where('assigned_to', $userId)
+                ->whereHas('status', function($q) use ($status) {
+                    $q->where('status_code', $status['code']);
+                })->count();
             $formattedStats[] = [
-                'code' => $snapshot->status_code,
-                'desc' => $snapshot->status_desc,
-                'count' => $snapshot->count,
-                'color' => $this->getStatusColor($snapshot->status_code)
+                'code' => $status['code'], 'desc' => $status['desc'],
+                'count' => $count, 'color' => $this->getStatusColor($status['code'])
             ];
         }
-
         return $formattedStats;
     }
 }
