@@ -7,6 +7,7 @@ use App\Models\ProspectStatus;
 use App\Models\PredictionScore;
 use App\Models\KonfigurasiDashboard; 
 use App\Models\ContactActivity; 
+use App\Models\User; // Tambahkan Model User
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -74,14 +75,13 @@ class DashboardController extends Controller
                 // Durasi Bicara Hari Ini (Menit)
                 'duration_min' => round($durationTotal / 60, 1),
             ];
-       
+        
             // Jika ingin 'NEW' tetap muncul di pipeline bawah, hapus ->where('status_code', '!=', 'NEW')
             $allStatuses = ProspectStatus::where('status_code', '!=', 'NEW')
                 ->orderBy('id') 
                 ->get();
 
             // 2. Hitung Jumlah Personal (Group by status_id)
-            // pluck('total', 'prospect_status_id') menghasilkan array [status_id => total]
             $userCounts = Prospect::where('assigned_to', $user->id)
                 ->select('prospect_status_id', DB::raw('count(*) as total'))
                 ->groupBy('prospect_status_id')
@@ -96,10 +96,9 @@ class DashboardController extends Controller
             $personalPipelineStats = $allStatuses->map(function($status) use ($userCounts) {
                 return [
                     'code'  => $status->status_code,
-                    // Ambil count dari array userCounts, jika tidak ada return 0
                     'count' => $userCounts[$status->id] ?? 0, 
                     'desc'  => $this->getStatusDesc($status->status_code),
-                    'color' => $this->getStatusColor($status->status_code) // Helper warna-warni
+                    'color' => $this->getStatusColor($status->status_code)
                 ];
             });
 
@@ -138,6 +137,32 @@ class DashboardController extends Controller
             });
         }
 
+        // --- [BARU] Filter Scored By (User) ---
+        if ($request->has('scored_by') && $request->scored_by != '') {
+            $query->whereHas('latestScore', function($q) use ($request) {
+                $q->where('scored_by_user_id', $request->scored_by);
+            });
+        }
+
+        // --- [BARU] Filter Scored At (Waktu) ---
+        if ($request->has('scored_at') && $request->scored_at != '') {
+            $query->whereHas('latestScore', function($q) use ($request) {
+                $val = $request->scored_at;
+                $now = Carbon::now();
+
+                if ($val === 'today') {
+                    $q->whereDate('scored_at', $now->toDateString());
+                } elseif ($val === 'this_week') {
+                    $start = $now->copy()->startOfWeek()->format('Y-m-d H:i:s');
+                    $end   = $now->copy()->endOfWeek()->format('Y-m-d H:i:s');
+                    $q->whereBetween('scored_at', [$start, $end]);
+                } elseif ($val === 'this_month') {
+                    $q->whereMonth('scored_at', $now->month)
+                      ->whereYear('scored_at', $now->year);
+                }
+            });
+        }
+
         // Sorting
         $sortField = $request->input('sort_field', 'score'); 
         $sortDirection = $request->input('sort_direction', 'desc');
@@ -168,6 +193,9 @@ class DashboardController extends Controller
             ->orderBy('status_code')
             ->pluck('status_code');
 
+        // [BARU] Data Dropdown Scored By (Ambil user yang pernah melakukan scoring)
+        $scoringUsers = User::whereHas('predictionScores')->select('id', 'name')->get();
+
         $prospects = $query->paginate(10)
             ->withQueryString()
             ->through(function ($item) {
@@ -182,7 +210,6 @@ class DashboardController extends Controller
                     'scored_at'      => $item->latestScore 
                                             ? Carbon::parse($item->latestScore->scored_at)->format('d M Y H:i') 
                                             : null,
-                    // Kita kirim nama untuk display, tapi karena ini string, jangan divalidasi 'numeric' di update
                     'assigned_to'    => $item->assignedUser ? $item->assignedUser->name : '-',
                     'scored_by'      => $item->latestScore && $item->latestScore->user 
                                             ? $item->latestScore->user->name 
@@ -214,7 +241,8 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'prospects'     => $prospects,
             'statusOptions' => $statusOptions,        
-            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction', 'search_id']),
+            'scoringUsers'  => $scoringUsers, // [BARU] Pass ke frontend
+            'filters'       => $request->only(['status', 'priority', 'sort_field', 'sort_direction', 'search_id', 'scored_by', 'scored_at']),
             'stats'         => $stats,
             'personalStats' => $personalStats, 
             'personalPipelineStats' => $personalPipelineStats, 
@@ -327,13 +355,10 @@ class DashboardController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // FIX: Hapus 'assigned_to' dari validasi karena frontend mengirim Nama (String) bukan ID.
-        // Data 'assigned_to' akan otomatis diabaikan oleh Laravel saat update() karena tidak masuk $validated.
         $validated = $request->validate([
             'age'            => 'numeric|nullable|min:1',
             'job'            => 'string|nullable',
             'education'      => 'string|nullable',
-            // 'assigned_to' => 'numeric|nullable|exists:users,id', // <-- DIHAPUS/DIKOMENTARI UNTUK MEMPERBAIKI ERROR
             'month'          => 'string|nullable',
             'duration'       => 'numeric|nullable|min:1',
             'campaign'       => 'numeric|nullable|min:1',
@@ -347,8 +372,6 @@ class DashboardController extends Controller
         DB::beginTransaction();
         try {
             $prospect = Prospect::findOrFail($id);
-            
-            // Update hanya field yang tervalidasi (assigned_to tidak akan terupdate, yang aman)
             $prospect->update($validated);
             
             if ($prospect->scores()->exists()) {

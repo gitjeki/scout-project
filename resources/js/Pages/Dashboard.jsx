@@ -8,7 +8,7 @@ import {
     FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
     FaSort, FaSortUp, FaSortDown,
     FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble, FaSearch, FaRedo,
-    FaClock, FaCalendarAlt, FaGlobeAsia, FaUserTie
+    FaClock, FaCalendarAlt, FaGlobeAsia, FaUserTie, FaUser
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
@@ -471,7 +471,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 
 // --- MAIN PAGE COMPONENT ---
 
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, personalPipelineStats, globalPipelineStats, formTemplate }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], scoringUsers = [], filters = {}, personalStats, personalPipelineStats, globalPipelineStats, formTemplate }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const isSales = auth.user.role === 'sales';
@@ -482,7 +482,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     // --- STATE FILTER ---
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
     const [filterPriority, setFilterPriority] = useState(filters.priority || '');
-    const [searchId, setSearchId] = useState(filters.search_id || ''); // State untuk Search ID
+    const [filterScoredBy, setFilterScoredBy] = useState(filters.scored_by || ''); // Baru
+    const [filterScoredAt, setFilterScoredAt] = useState(filters.scored_at || ''); // Baru
+    const [searchId, setSearchId] = useState(filters.search_id || ''); 
 
     const [sortField, setSortField] = useState(filters.sort_field || 'id');
     const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
@@ -495,11 +497,13 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     useEffect(() => { 
         setSelectedIds([]); 
         setSelectAllMatching(false); 
-    }, [filterStatus, filterPriority, sortField, sortDirection, prospects.current_page, searchId]);
+    }, [filterStatus, filterPriority, filterScoredBy, filterScoredAt, sortField, sortDirection, prospects.current_page, searchId]);
     
     const handleFilterChange = (key, value) => {
         let newStatus = key === 'status' ? value : filterStatus;
         let newPriority = key === 'priority' ? value : filterPriority;
+        let newScoredBy = key === 'scored_by' ? value : filterScoredBy;
+        let newScoredAt = key === 'scored_at' ? value : filterScoredAt;
         
         let newSortField = sortField;
         let newSortDirection = sortDirection;
@@ -513,11 +517,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
         if (key === 'status') setFilterStatus(value);
         if (key === 'priority') setFilterPriority(value);
+        if (key === 'scored_by') setFilterScoredBy(value);
+        if (key === 'scored_at') setFilterScoredAt(value);
 
         router.get(route('dashboard'), { 
             status: newStatus, 
             priority: newPriority,
-            search_id: searchId, // Sertakan search_id
+            scored_by: newScoredBy,
+            scored_at: newScoredAt,
+            search_id: searchId, 
             sort_field: newSortField, 
             sort_direction: newSortDirection 
         }, { preserveState: true, replace: true });
@@ -529,7 +537,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), { 
             status: filterStatus, 
             priority: filterPriority,
-            search_id: searchId, // Kirim ID
+            scored_by: filterScoredBy,
+            scored_at: filterScoredAt,
+            search_id: searchId, 
             sort_field: sortField, 
             sort_direction: sortDirection 
         }, { preserveState: true, replace: true });
@@ -538,6 +548,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const handleResetFilters = () => {
         setFilterStatus('');
         setFilterPriority('');
+        setFilterScoredBy('');
+        setFilterScoredAt('');
         setSearchId('');
         // Reset ke halaman dashboard tanpa parameter query
         router.get(route('dashboard'));
@@ -553,6 +565,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), {
             status: filterStatus,
             priority: filterPriority,
+            scored_by: filterScoredBy,
+            scored_at: filterScoredAt,
             search_id: searchId,
             sort_field: field,
             sort_direction: newDirection
@@ -714,7 +728,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             {isAdmin && (
                 <>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto flex-wrap">
                         
                         {/* INPUT SEARCH BY ID */}
                         <form onSubmit={handleSearchId} className="flex items-center gap-2 w-full md:w-auto">
@@ -732,20 +746,42 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFilter className="text-gray-400" />
-                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500">
+                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Semua Status</option>
                                 {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
+                        
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFire className="text-gray-400" />
-                            <select value={filterPriority} onChange={(e) => handleFilterChange('priority', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
+                            <select value={filterPriority} onChange={(e) => handleFilterChange('priority', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-36 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Semua Prioritas</option>
                                 <option value="1">High (1)</option>
                                 <option value="2">Medium (2)</option>
                                 <option value="3">Low (3)</option>
                             </select>
                         </div>
+
+                         {/* [BARU] FILTER SCORED BY */}
+                         <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaUser className="text-gray-400" />
+                            <select value={filterScoredBy} onChange={(e) => handleFilterChange('scored_by', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">All Scorers</option>
+                                {scoringUsers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* [BARU] FILTER SCORED AT */}
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaClock className="text-gray-400" />
+                            <select value={filterScoredAt} onChange={(e) => handleFilterChange('scored_at', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-36 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Scored Time</option>
+                                <option value="today">Hari Ini</option>
+                                <option value="this_week">Minggu Ini</option>
+                                <option value="this_month">Bulan Ini</option>
+                            </select>
+                        </div>
+
                         <button 
                                 onClick={handleResetFilters}
                                 title="Reset Filter"
@@ -753,7 +789,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             >
                                 <FaRedo /> <span className="hidden md:inline text-xs font-bold">Reset</span>
                             </button>
-                                                                </div>
+                                                                                </div>
 
                     <div className="flex gap-2 w-full md:w-auto justify-end">
                         <button 
