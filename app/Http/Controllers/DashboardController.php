@@ -63,8 +63,7 @@ class DashboardController extends Controller
             $callsToday = (clone $myCallsQuery)->whereDate('contact_at', Carbon::today())->count();
             $durationTotal = (clone $myCallsQuery)->whereDate('contact_at', Carbon::today())->sum('call_duration_sec');
 
-      $personalStats = [
-
+            $personalStats = [
                 'hot_leads' => Prospect::where('assigned_to', $user->id)
                     ->whereHas('status', fn($q) => $q->where('status_code', 'NEW'))
                     ->count(),
@@ -75,7 +74,7 @@ class DashboardController extends Controller
                 // Durasi Bicara Hari Ini (Menit)
                 'duration_min' => round($durationTotal / 60, 1),
             ];
-      
+       
             // Jika ingin 'NEW' tetap muncul di pipeline bawah, hapus ->where('status_code', '!=', 'NEW')
             $allStatuses = ProspectStatus::where('status_code', '!=', 'NEW')
                 ->orderBy('id') 
@@ -183,6 +182,7 @@ class DashboardController extends Controller
                     'scored_at'      => $item->latestScore 
                                             ? Carbon::parse($item->latestScore->scored_at)->format('d M Y H:i') 
                                             : null,
+                    // Kita kirim nama untuk display, tapi karena ini string, jangan divalidasi 'numeric' di update
                     'assigned_to'    => $item->assignedUser ? $item->assignedUser->name : '-',
                     'scored_by'      => $item->latestScore && $item->latestScore->user 
                                             ? $item->latestScore->user->name 
@@ -327,11 +327,13 @@ class DashboardController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // FIX: Hapus 'assigned_to' dari validasi karena frontend mengirim Nama (String) bukan ID.
+        // Data 'assigned_to' akan otomatis diabaikan oleh Laravel saat update() karena tidak masuk $validated.
         $validated = $request->validate([
             'age'            => 'numeric|nullable|min:1',
             'job'            => 'string|nullable',
             'education'      => 'string|nullable',
-            'assigned_to'    => 'numeric|nullable|exists:users,id', 
+            // 'assigned_to' => 'numeric|nullable|exists:users,id', // <-- DIHAPUS/DIKOMENTARI UNTUK MEMPERBAIKI ERROR
             'month'          => 'string|nullable',
             'duration'       => 'numeric|nullable|min:1',
             'campaign'       => 'numeric|nullable|min:1',
@@ -345,6 +347,8 @@ class DashboardController extends Controller
         DB::beginTransaction();
         try {
             $prospect = Prospect::findOrFail($id);
+            
+            // Update hanya field yang tervalidasi (assigned_to tidak akan terupdate, yang aman)
             $prospect->update($validated);
             
             if ($prospect->scores()->exists()) {
