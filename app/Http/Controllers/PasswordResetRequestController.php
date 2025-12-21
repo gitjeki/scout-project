@@ -44,7 +44,7 @@ class PasswordResetRequestController extends Controller
         ]);
 
         // 4. Kembalikan pesan sukses
-        return back()->with('status', 'Permintaan terkirim! Admin akan segera mereset password Anda.');
+        return back()->with('status', 'Request sent! Admin will reset your password soon.');
     }
 
     /**
