@@ -11,7 +11,7 @@ import { Head } from '@inertiajs/react';
 export default function Edit({ mustVerifyEmail, status }) {
     return (
         // GANTI WRAPPER DI SINI:
-        <SidebarLayout header="Profil Saya">
+        <SidebarLayout header="My Profile">
             <Head title="Profile" />
 
             <div className="py-6 space-y-6">
@@ -26,11 +26,6 @@ export default function Edit({ mustVerifyEmail, status }) {
                 <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                     <UpdatePasswordForm className="max-w-xl" />
                 </div>
-
-                {/* Hapus bagian Delete User jika Sales tidak boleh hapus akun sendiri */}
-                {/* <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                    <DeleteUserForm className="max-w-xl" />
-                </div> */}
             </div>
         </SidebarLayout>
     );

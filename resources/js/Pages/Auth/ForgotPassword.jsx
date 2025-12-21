@@ -2,7 +2,8 @@ import GuestLayout from '@/Layouts/GuestLayout';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Head, useForm } from '@inertiajs/react';
+// PERBAIKAN 1: Tambahkan 'router' di import
+import { Head, useForm, router } from '@inertiajs/react';
 
 export default function ForgotPassword({ status }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -11,7 +12,17 @@ export default function ForgotPassword({ status }) {
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('password.email'));
+        
+        // PERBAIKAN 2: Tambahkan logika onSuccess untuk redirect
+        post(route('password.email'), {
+            onSuccess: () => {
+                // Opsional: Tampilkan alert kecil agar user tahu request berhasil
+                // alert('Permintaan reset password telah dikirim.'); 
+                
+                // Redirect ke halaman login
+                router.get(route('login'));
+            },
+        });
     };
 
     return (
@@ -19,8 +30,8 @@ export default function ForgotPassword({ status }) {
             <Head title="Lupa Password" />
 
             <div className="mb-4 text-sm text-gray-600 text-center">
-                Lupa password Anda? Masukkan email akun Anda di bawah ini. 
-                Permintaan reset akan dikirim ke <b>Administrator</b>.
+                Forgot your password? Enter your account email address below.
+                A reset request will be sent to the Administrator.
             </div>
 
             {status && <div className="mb-4 font-medium text-sm text-green-600 text-center">{status}</div>}
@@ -34,7 +45,7 @@ export default function ForgotPassword({ status }) {
                     className="mt-1 block w-full border-2 border-gray-300"
                     isFocused={true}
                     onChange={(e) => setData('email', e.target.value)}
-                    placeholder="Masukkan Email Anda"
+                    placeholder="Enter your email"
                 />
 
                 <InputError message={errors.email} className="mt-2" />
@@ -44,7 +55,7 @@ export default function ForgotPassword({ status }) {
                         className="w-full justify-center bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 border-none" 
                         disabled={processing}
                     >
-                        Kirim Permintaan ke Admin
+                       Send Request to Admin
                     </PrimaryButton>
                 </div>
             </form>

@@ -34,9 +34,9 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900">Informasi Profil</h2>
+                <h2 className="text-lg font-medium text-gray-900">Profile Information</h2>
                 <p className="mt-1 text-sm text-gray-600">
-                    Update foto, username, dan nama akun Anda.
+                Update your photo, username, and account name.
                 </p>
             </header>
 
@@ -44,7 +44,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                 
                 {/* --- FOTO PROFIL --- */}
                 <div>
-                    <InputLabel value="Foto Profil" />
+                    <InputLabel value="Profile Picture" />
                     <div className="flex items-center gap-4 mt-2">
                         {/* Preview Bulat */}
                         <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 border border-gray-300">
@@ -68,7 +68,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
 
                 {/* --- NAMA --- */}
                 <div>
-                    <InputLabel htmlFor="name" value="Nama Lengkap" />
+                    <InputLabel htmlFor="name" value="Full Name" />
                     <TextInput
                         id="name"
                         className="mt-1 block w-full"
@@ -107,7 +107,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Simpan Perubahan</PrimaryButton>
+                    <PrimaryButton disabled={processing}>Save Changes</PrimaryButton>
                     <Transition
                         show={recentlySuccessful}
                         enter="transition ease-in-out"
@@ -115,7 +115,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">Tersimpan.</p>
+                        <p className="text-sm text-gray-600">Saved.</p>
                     </Transition>
                 </div>
             </form>

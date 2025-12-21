@@ -36,13 +36,13 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
             {/* BAGIAN A: KINERJA HARIAN (SAMA SEPERTI GAMBAR 1) */}
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <FaChartPie className="text-orange-500" /> Kinerja Harian: {userName}
+                    <FaChartPie className="text-orange-500" /> Daily Performance: {userName}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Card 1: Target Prioritas */}
                     <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-red-600 font-bold mb-1">Target Prioritas (New)</p>
+                            <p className="text-xs text-red-600 font-bold mb-1">Priority Target (New)</p>
                             <h2 className="text-3xl font-bold text-red-700">{personalStats?.hot_leads || 0}</h2>
                             <p className="text-[10px] text-red-400 mt-1">New Assignment</p>
                         </div>
@@ -52,9 +52,9 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                     {/* Card 2: Calls */}
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-blue-600 font-bold mb-1">Aktivitas Anda</p>
+                            <p className="text-xs text-blue-600 font-bold mb-1">Your Activity</p>
                             <h2 className="text-3xl font-bold text-blue-700">{personalStats?.calls_today || 0}</h2>
-                            <p className="text-[10px] text-blue-400 mt-1">Call tersimpan hari ini</p>
+                            <p className="text-[10px] text-blue-400 mt-1">Calls saved today</p>
                         </div>
                         <div className="p-3 bg-white rounded-full text-blue-500 shadow-sm"><FaCalendarAlt size={20}/></div>
                     </div>
@@ -62,9 +62,9 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                     {/* Card 3: Duration */}
                     <div className="bg-green-50 border border-green-100 p-4 rounded-xl flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-green-600 font-bold mb-1">Durasi Bicara</p>
+                            <p className="text-xs text-green-600 font-bold mb-1">Talk Duration</p>
                             <h2 className="text-3xl font-bold text-green-700">{personalStats?.duration_min || 0}</h2>
-                            <p className="text-[10px] text-green-400 mt-1">Total menit hari ini</p>
+                            <p className="text-[10px] text-green-400 mt-1">Total minutes today</p>
                         </div>
                         <div className="p-3 bg-white rounded-full text-green-500 shadow-sm"><FaClock size={20}/></div>
                     </div>
@@ -74,7 +74,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
             {/* BAGIAN B: PERSONAL PIPELINE (LOGIC DARI PROSPECT.JSX) */}
             <div>
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-blue-500 pl-2">
-                    <FaUserTie /> Personal Pipeline Overview (Milik Anda)
+                    <FaUserTie /> Personal Pipeline Overview (Yours)
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                     {personalPipeline && personalPipeline.length > 0 ? (
@@ -83,13 +83,13 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                                 <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">{stat.code.replace('_', ' ')}</p>
                                 <div>
                                     <h4 className="text-2xl font-bold">{stat.count}</h4>
-                                    <p className="text-[9px] leading-tight opacity-80 mt-1 truncate">{stat.desc || 'Status Prospek'}</p>
+                                    <p className="text-[9px] leading-tight opacity-80 mt-1 truncate">{stat.desc || 'Prospect Status'}</p>
                                 </div>
                             </div>
                         ))
                     ) : (
                         <div className="col-span-6 py-6 text-center text-gray-400 text-xs border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                            Anda belum memiliki data prospek di pipeline pribadi. (Cek halaman Prospek untuk memastikan data)
+                            You don't have any prospect data in your personal pipeline yet. (Check the Prospects page to confirm the data)
                         </div>
                     )}
                 </div>
@@ -98,7 +98,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
             {/* BAGIAN C: GLOBAL PIPELINE (Logic Snapshot / Tim) */}
             <div>
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-orange-500 pl-2">
-                    <FaGlobeAsia /> Global Pipeline (Seluruh Tim)
+                    <FaGlobeAsia /> Global Pipeline (The Whole Team)
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                     {globalPipeline && globalPipeline.length > 0 ? (
@@ -116,7 +116,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                         ))
                     ) : (
                         <div className="col-span-6 py-6 text-center text-gray-400 text-xs border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                            Belum ada data global pipeline tersedia.
+                            There is no global pipeline data available yet.
                         </div>
                     )}
                 </div>
@@ -169,7 +169,7 @@ const FloatingToast = ({ flash, errors }) => {
         <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${styles}`}>
             {icon}
             <div>
-                <h4 className="font-bold text-sm uppercase">{msg.type === 'success' ? 'Berhasil' : 'Gagal'}</h4>
+                <h4 className="font-bold text-sm uppercase">{msg.type === 'success' ? 'Success' : 'Failed'}</h4>
                 <p className="text-sm font-medium">{msg.text}</p>
             </div>
             <button onClick={() => setShow(false)} className="ml-4 text-white hover:text-gray-200"><FaTimes /></button>
@@ -180,9 +180,9 @@ const FloatingToast = ({ flash, errors }) => {
 const LoadingOverlay = ({ isVisible, mode = 'predict' }) => {
     if (!isVisible) return null;
     const config = {
-        predict: { icon: <FaRobot className="text-6xl text-orange-500 mb-4 animate-pulse" />, title: "AI Sedang Bekerja...", subtitle: "Menganalisis probabilitas data prospek." },
-        import: { icon: <FaCloudUploadAlt className="text-6xl text-blue-500 mb-4 animate-bounce" />, title: "Mengimport Data...", subtitle: "Mohon tunggu, sedang memasukkan data ke database." },
-        delete: { icon: <FaTrash className="text-6xl text-red-500 mb-4 animate-pulse" />, title: "Menghapus Data...", subtitle: "Mohon tunggu, sedang membersihkan database." }
+        predict: { icon: <FaRobot className="text-6xl text-orange-500 mb-4 animate-pulse" />, title: "AI at Work...", subtitle: "Analyze the probability of prospect data." },
+        import: { icon: <FaCloudUploadAlt className="text-6xl text-blue-500 mb-4 animate-bounce" />, title: "Importing Data...", subtitle: "Please wait, we are entering data into the database." },
+        delete: { icon: <FaTrash className="text-6xl text-red-500 mb-4 animate-pulse" />, title: "Deleting Data...", subtitle: "Please wait, cleaning the database." }
     };
     const current = config[mode] || config.predict;
     return (
@@ -199,15 +199,15 @@ const LoadingOverlay = ({ isVisible, mode = 'predict' }) => {
 
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, type, count, statusName }) => {
     if (!isOpen) return null;
-    let title = "Konfirmasi Hapus";
+    let title = "Confirm Delete";
     let message = "";
     if (type === 'single') {
-        message = "Apakah Anda yakin ingin menghapus data prospek ini secara permanen?";
+        message = "Are you sure you want to permanently delete this prospect's data?";
     } else if (type === 'selection') {
-        message = `Anda akan menghapus ${count} data prospek yang telah dipilih. Data yang dihapus tidak dapat dikembalikan.`;
+        message = `You are about to delete the ${count} of prospect data you have selected. Deleted data cannot be recovered.`;
     } else if (type === 'all_filtered') {
-        title = "PERINGATAN BAHAYA!";
-        message = `Anda akan menghapus SEMUA data (${count} Data) yang sesuai dengan filter "${statusName || 'Semua Status'}" & "Semua Prioritas". Tindakan ini tidak dapat dibatalkan!`;
+        title = "WARNING!";
+        message = `You will delete ALL records (${count} Data) that match the filters "${statusName || 'All Statuses'}" & "All Priorities". This action cannot be undone!`;
     }
 
     return (
@@ -218,9 +218,9 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, type, count, statusNam
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
                     <p className="text-gray-500 text-sm mb-6 leading-relaxed">{message}</p>
                     <div className="flex gap-3 w-full">
-                        <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors">Batal</button>
+                        <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors">Cancel</button>
                         <button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
-                            <FaTrash size={14} /> Hapus
+                            <FaTrash size={14} /> Delete
                         </button>
                     </div>
                 </div>
@@ -241,12 +241,12 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black bg-opacity-60 overflow-y-auto p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col transform transition-all scale-100">
                 <div className="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
-                    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3"><FaCog className="text-blue-600 text-3xl" /> Konfigurasi Template Form</h3>
+                    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3"><FaCog className="text-blue-600 text-3xl" /> Form Template Configuration</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-red-500 transition-colors bg-white p-2 rounded-full shadow-sm"><FaTimes size={24} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-10">
                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-200 shadow-sm">
-                        <h4 className="text-lg font-bold text-blue-900 mb-6 flex items-center gap-2 border-b border-blue-200 pb-3"><FaMoneyBillWave className="text-xl" /> Nilai Indikator Ekonomi (Default)</h4>
+                        <h4 className="text-lg font-bold text-blue-900 mb-6 flex items-center gap-2 border-b border-blue-200 pb-3"><FaMoneyBillWave className="text-xl" /> Economic Indicator Values (Default)</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                             {[{ label: 'Cons. Price Idx', key: 'cons_price_idx' }, { label: 'Cons. Conf. Idx', key: 'cons_conf_idx' }, { label: 'Euribor 3M', key: 'euribor3m' }, { label: 'Nr. Employed', key: 'nr_employed' }].map((field) => (
                                 <div key={field.key}>
@@ -258,7 +258,7 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="border border-gray-200 rounded-xl p-6 shadow-sm">
-                             <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-3"><FaListUl className="text-blue-600" /> Daftar Pekerjaan (Job)</h4>
+                             <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-3"><FaListUl className="text-blue-600" /> Job List</h4>
                             <div className="space-y-3 max-h-80 overflow-y-auto pr-3 custom-scrollbar">
                                 {data.dropdowns.jobs.map((job, idx) => (
                                     <div key={idx} className="flex gap-3 items-center">
@@ -268,10 +268,10 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
                                     </div>
                                 ))}
                             </div>
-                            <button type="button" onClick={() => addArrayItem('jobs')} className="mt-5 w-full py-3 text-sm font-bold border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition">+ Tambah Job Baru</button>
+                            <button type="button" onClick={() => addArrayItem('jobs')} className="mt-5 w-full py-3 text-sm font-bold border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition">+ Add New Job</button>
                         </div>
                         <div className="border border-gray-200 rounded-xl p-6 shadow-sm">
-                             <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-3"><FaListUl className="text-green-600" /> Daftar Pendidikan (Education)</h4>
+                             <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-3"><FaListUl className="text-green-600" /> List Education</h4>
                             <div className="space-y-3 max-h-80 overflow-y-auto pr-3 custom-scrollbar">
                                 {data.dropdowns.education.map((edu, idx) => (
                                     <div key={idx} className="flex gap-3 items-center">
@@ -281,13 +281,13 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
                                     </div>
                                 ))}
                             </div>
-                            <button type="button" onClick={() => addArrayItem('education')} className="mt-5 w-full py-3 text-sm font-bold border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition">+ Tambah Education Baru</button>
+                            <button type="button" onClick={() => addArrayItem('education')} className="mt-5 w-full py-3 text-sm font-bold border-2 border-dashed border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition">+ Add New Education</button>
                         </div>
                     </div>
                 </form>
                 <div className="p-6 border-t bg-gray-50 flex justify-end gap-4 rounded-b-2xl">
-                    <button onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition">Batal</button>
-                    <button onClick={handleSubmit} disabled={processing} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition flex items-center gap-3">{processing ? <FaSpinner className="animate-spin text-xl" /> : <FaSave className="text-xl" />} Simpan Konfigurasi</button>
+                    <button onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition">Cancel</button>
+                    <button onClick={handleSubmit} disabled={processing} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition flex items-center gap-3">{processing ? <FaSpinner className="animate-spin text-xl" /> : <FaSave className="text-xl" />} Save Configuration</button>
                 </div>
             </div>
         </div>
@@ -340,21 +340,21 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl m-4 p-8 relative transform transition-all">
                 <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><FaTimes size={20} /></button>
                 <h3 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4 flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><FaPlus size={24} /></div> Tambah Prospek Manual
+                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><FaPlus size={24} /></div> Add Prospects Manually
                 </h3>
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-5">
-                        <InputGroup label="Age (Umur)" type="number" value={data.age} onChange={e => setData('age', e.target.value)} error={errors.age} />
-                        <SelectGroup label="Job (Pekerjaan)" options={dropdowns.jobs} value={data.job} onChange={e => setData('job', e.target.value)} error={errors.job} />
-                        <SelectGroup label="Education (Pendidikan)" options={dropdowns.education} value={data.education} onChange={e => setData('education', e.target.value)} error={errors.education} />
-                        <SelectGroup label="Month (Bulan)" options={OPT_MONTHS} value={data.month} onChange={e => setData('month', e.target.value)} error={errors.month} />
-                        <SelectGroup label="Poutcome (Hasil Sebelumnya)" options={OPT_POUTCOME} value={data.poutcome} onChange={e => setData('poutcome', e.target.value)} error={errors.poutcome} />
+                        <InputGroup label="Age" type="number" value={data.age} onChange={e => setData('age', e.target.value)} error={errors.age} />
+                        <SelectGroup label="Job" options={dropdowns.jobs} value={data.job} onChange={e => setData('job', e.target.value)} error={errors.job} />
+                        <SelectGroup label="Education" options={dropdowns.education} value={data.education} onChange={e => setData('education', e.target.value)} error={errors.education} />
+                        <SelectGroup label="Month" options={OPT_MONTHS} value={data.month} onChange={e => setData('month', e.target.value)} error={errors.month} />
+                        <SelectGroup label="Poutcome" options={OPT_POUTCOME} value={data.poutcome} onChange={e => setData('poutcome', e.target.value)} error={errors.poutcome} />
                     </div>
                     <div className="space-y-5">
-                        <InputGroup label="Duration (Durasi Detik)" type="number" value={data.duration} onChange={e => setData('duration', e.target.value)} error={errors.duration} />
-                        <InputGroup label="Campaign (Jumlah Kontak)" type="number" value={data.campaign} onChange={e => setData('campaign', e.target.value)} error={errors.campaign} />
+                        <InputGroup label="Duration" type="number" value={data.duration} onChange={e => setData('duration', e.target.value)} error={errors.duration} />
+                        <InputGroup label="Campaign" type="number" value={data.campaign} onChange={e => setData('campaign', e.target.value)} error={errors.campaign} />
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
-                            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Indikator Ekonomi</h4>
+                            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Economic Indicators</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <InputGroup label="Cons. Price Idx" type="number" value={data.cons_price_idx} onChange={e => setData('cons_price_idx', e.target.value)} error={errors.cons_price_idx} />
                                 <InputGroup label="Cons. Conf. Idx" type="number" value={data.cons_conf_idx} onChange={e => setData('cons_conf_idx', e.target.value)} error={errors.cons_conf_idx} />
@@ -364,9 +364,9 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
                         </div>
                     </div>
                     <div className="col-span-1 md:col-span-2 flex justify-end gap-4 mt-6 pt-6 border-t">
-                        <button type="button" onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition">Batal</button>
+                        <button type="button" onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition">Cancel</button>
                         <button type="submit" disabled={processing} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg flex items-center gap-3 transition hover:shadow-xl">
-                            {processing ? 'Menyimpan...' : <><FaSave size={18} /> Simpan Data</>}
+                            {processing ? 'Saving...' : <><FaSave size={18} /> Save Data</>}
                         </button>
                     </div>
                 </form>
@@ -660,8 +660,6 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     
     const submitPredict = (e) => { e.preventDefault(); postPredict(route('dashboard.run-predictions'), { preserveScroll: true }); };
 
-    useEffect(() => { document.body.style.zoom = "67%"; return () => { document.body.style.zoom = "100%"; }; }, []);
-
     return (
         <SidebarLayout header={isSales ? "Sales Dashboard" : "Administrator Dashboard"}>
             <Head title="Dashboard" />
@@ -689,9 +687,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             {isSales && (
                 <DashboardSection 
                     personalStats={personalStats}
-                    // IMPORTANT: Ini harus dikirim dari backend, jika belum ada ganti dengan []
                     personalPipeline={personalPipelineStats || []} 
-                    // IMPORTANT: Menggunakan prop baru untuk Global
                     globalPipeline={globalPipelineStats || []}
                     userName={auth.user.name}
                 />
@@ -702,10 +698,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 <div className="mb-8">
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FaChartPie/> Data Summary (System)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <StatsCard icon={FaDatabase} color="blue" title="Total Data Input" value={stats.total_input} unit="Row" description="Gabungan Manual & Import" />
-                        <StatsCard icon={FaCalendarDay} color="green" title="Input Hari Ini" value={stats.today_input} unit="Row" description="Data baru masuk hari ini" />
-                        <StatsCard icon={FaRobot} color="purple" title="Total Diprediksi" value={stats.total_predicted} unit="Row" description="Total data selesai diproses AI" />
-                        <StatsCard icon={FaChartLine} color="orange" title="Prediksi Hari Ini" value={stats.today_predicted} unit="Row" description="Hasil prediksi AI hari ini" />
+                        <StatsCard icon={FaDatabase} color="blue" title="Total Data Inputs" value={stats.total_input} unit="Row" description="Combined Manual & Import" />
+                        <StatsCard icon={FaCalendarDay} color="green" title="Inputs Today" value={stats.today_input} unit="Row" description="New data entered today" />
+                        <StatsCard icon={FaRobot} color="purple" title="Total Predicted" value={stats.total_predicted} unit="Row" description="Total data processed by AI" />
+                        <StatsCard icon={FaChartLine} color="orange" title="Predictions Today" value={stats.today_predicted} unit="Row" description="AI results generated today" />
                     </div>
                 </div>
             )}
@@ -722,7 +718,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input 
                                     type="text" 
-                                    placeholder="Cari ID..." 
+                                    placeholder="Search ID..." 
                                     value={searchId}
                                     onChange={(e) => setSearchId(e.target.value)}
                                     className="pl-9 pr-3 py-2 border-gray-300 rounded text-sm w-full md:w-32 focus:ring-blue-500 focus:border-blue-500"
@@ -733,14 +729,14 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFilter className="text-gray-400" />
                             <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Semua Status</option>
+                                <option value="">All Status</option>
                                 {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFire className="text-gray-400" />
                             <select value={filterPriority} onChange={(e) => handleFilterChange('priority', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Semua Prioritas</option>
+                                <option value="">All Priority</option>
                                 <option value="1">High (1)</option>
                                 <option value="2">Medium (2)</option>
                                 <option value="3">Low (3)</option>
@@ -764,7 +760,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
-                            <FaCheckDouble /> {selectAllMatching ? 'Batalkan Pilih Semua' : `Pilih Semua ${prospects.total} Data`}
+                            <FaCheckDouble /> {selectAllMatching ? 'Cancel Select All' : `Select All ${prospects.total} Data`}
                         </button>
 
                         <button 
@@ -778,8 +774,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                         >
                             <FaTrash /> 
                             {selectAllMatching 
-                                ? `Hapus Semua (${prospects.total} Data)` 
-                                : `Hapus ${selectedIds.length > 0 ? `${selectedIds.length} Terpilih` : 'Terpilih'}`
+                                ? `Delete All (${prospects.total} Data)` 
+                                : `Delete ${selectedIds.length > 0 ? `${selectedIds.length} Selected` : 'Selected'}`
                             }
                         </button>
                     </div>
@@ -788,7 +784,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                 <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden">
                     <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center flex-wrap gap-2">
                         <div className="flex flex-col xl:flex-row gap-4 items-center w-full">
-                            <h3 className="text-base font-bold text-gray-800 whitespace-nowrap">Daftar Prospek</h3>
+                            <h3 className="text-base font-bold text-gray-800 whitespace-nowrap">Prospect List</h3>
                             
                             <div className="flex flex-col md:flex-row gap-2 w-full justify-end">
                                 <button onClick={() => setConfigModalOpen(true)} className="bg-white border border-gray-400 text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 justify-center">
@@ -808,7 +804,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                                 <form onSubmit={submitPredict}>
                                     <button type="submit" disabled={processingPredict} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 disabled:opacity-50 justify-center">
-                                        <FaRobot /> {processingPredict ? 'Memproses...' : 'Prediksi'}
+                                        <FaRobot /> {processingPredict ? 'Processing...' : 'Prediction'}
                                     </button>
                                 </form>
                             </div>
@@ -826,7 +822,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                             checked={isAllCurrentPageSelected || selectAllMatching} 
                                             disabled={selectAllMatching}
                                             className={`rounded focus:ring-blue-500 ${selectAllMatching ? 'text-blue-400 cursor-not-allowed opacity-70' : 'text-blue-600 cursor-pointer'}`}
-                                            title="Pilih semua di halaman ini"
+                                            title="Select all on this page"
                                         />
                                     </th>
                                     <th className="px-4 py-3 text-center sticky left-10 bg-gray-100 z-20 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-24">Action</th>
@@ -865,7 +861,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                                         />
                                     ))
                                 ) : (
-                                    <tr><td colSpan="20" className="px-6 py-10 text-center text-gray-500">Data kosong.</td></tr>
+                                    <tr><td colSpan="20" className="px-6 py-10 text-center text-gray-500">Empty data.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -875,7 +871,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                         <span className="text-xs text-gray-500">
                             Page {prospects.current_page} of {prospects.last_page} | 
                             <span className="ml-2 font-bold text-blue-600">
-                                Total Terpilih: {selectAllMatching ? prospects.total : selectedIds.length}
+                                Total Selected: {selectAllMatching ? prospects.total : selectedIds.length}
                             </span>
                         </span>
                         <div className="flex gap-1">

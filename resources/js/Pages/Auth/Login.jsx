@@ -78,10 +78,6 @@ export default function Login({ status, canResetPassword }) {
                         Login
                     </PrimaryButton>
                 </div>
-
-                {/* --- HAPUS LINK REGISTER --- */}
-                {/* Karena pendaftaran diurus Admin, kita hapus link "Don't have account?" */}
-                
             </form>
         </GuestLayout>
     );

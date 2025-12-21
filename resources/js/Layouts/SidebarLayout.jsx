@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { 
     FaUsers, FaChartLine, FaKey, FaSignOutAlt, 
@@ -10,22 +10,23 @@ import Dropdown from '@/Components/Dropdown';
 export default function SidebarLayout({ children, header }) {
     const { auth } = usePage().props;
     const user = auth.user;
+
+    useEffect(() => {
+        document.body.style.zoom = "";
+    }, []);
     
     // --- DEFINISI MENU ---
     const adminMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
-        
         { name: 'Data Control', route: 'data-control.index', icon: <FaExclamationTriangle /> },
-        
-        { name: 'Penugasan', route: 'assignments.index', icon: <FaClipboardList /> },
-        
-        { name: 'Pengelolaan Akun', route: 'users.index', icon: <FaUsers /> },
+        { name: 'Assignments', route: 'assignments.index', icon: <FaClipboardList /> },
+        { name: 'User Management', route: 'users.index', icon: <FaUsers /> },
         { name: 'Reset Password', route: 'admin.reset.index', icon: <FaKey /> },
     ];
 
     const salesMenus = [
         { name: 'Dashboard', route: 'dashboard', icon: <FaChartLine /> },
-        { name: 'Daftar Prospek', route: 'sales.prospects.index', icon: <FaTasks /> },
+        { name: 'Prospect List', route: 'sales.prospects.index', icon: <FaTasks /> },
     ];
 
     // Pilih menu berdasarkan role

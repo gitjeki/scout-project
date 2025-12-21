@@ -89,8 +89,8 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions, currentPa
                             {isActive ? <><FaStopCircle className="inline mr-1"/> Pause</> : <><FaPlayCircle className="inline mr-1"/> Resume</>}
                         </button>
                         <div className="flex gap-2">
-                            <button onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Batal</button>
-                            <button onClick={handleSave} className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold shadow-lg">Simpan</button>
+                            <button onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+                            <button onClick={handleSave} className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold shadow-lg">Save</button>
                         </div>
                     </div>
                 </div>
@@ -184,8 +184,6 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
         });
     }, [filters]);
 
-    useEffect(() => { document.body.style.zoom = "67%"; return () => { document.body.style.zoom = "100%"; }; }, []);
-
     // 1. FILTER OTOMATIS
     const handleFilterChange = useCallback((key, value) => {
         setData(key, value);
@@ -240,7 +238,7 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
             
             <div className="bg-white shadow-sm sm:rounded-xl border border-gray-200 overflow-hidden mt-6">
                 <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-800">Daftar Prospek</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Prospect List</h3>
                     <span className="text-xs text-gray-500">Total: {prospects.total} data</span>
                 </div>
 
@@ -248,18 +246,18 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                 <div className="p-3 bg-white border-b border-gray-200 grid grid-cols-6 gap-2 items-end">
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Search ID (Enter)</label>
-                        <input type="text" value={data.search} onChange={(e) => setData('search', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="w-full text-xs border-gray-300 rounded h-8" placeholder="ID lalu Enter..." />
+                        <input type="text" value={data.search} onChange={(e) => setData('search', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="w-full text-xs border-gray-300 rounded h-8" placeholder="ID then Enter..." />
                     </div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Status</label>
                         <select value={data.filter_status} onChange={(e) => handleFilterChange('filter_status', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
-                            <option value="">Semua</option>{statusOptions.map(opt => <option key={opt.code} value={opt.code}>{opt.code}</option>)}
+                            <option value="">All</option>{statusOptions.map(opt => <option key={opt.code} value={opt.code}>{opt.code}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Prioritas</label>
                         <select value={data.filter_priority} onChange={(e) => handleFilterChange('filter_priority', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
-                            <option value="">Semua</option><option value="1">High</option><option value="2">Medium</option><option value="3">Low</option>
+                            <option value="">All</option><option value="1">High</option><option value="2">Medium</option><option value="3">Low</option>
                         </select>
                     </div>
                     
@@ -267,17 +265,17 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                     <div>
                         <label className="text-[10px] font-bold text-gray-500 flex items-center gap-1"><FaCalendarAlt size={10}/> Last Contact</label>
                         <select value={data.filter_last_contact} onChange={(e) => handleFilterChange('filter_last_contact', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
-                            <option value="">Semua Waktu</option>
-                            <option value="today">Hari Ini</option>
-                            <option value="this_week">Minggu Ini</option>
-                            <option value="this_month">Bulan Ini</option>
+                            <option value="">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="this_week">This Week</option>
+                            <option value="this_month">This Month</option>
                         </select>
                     </div>
 
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Channel</label>
                         <select value={data.filter_channel} onChange={(e) => handleFilterChange('filter_channel', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
-                            <option value="">Semua</option>{channelOptions.map(ch => <option key={ch} value={ch}>{ch}</option>)}
+                            <option value="">All</option>{channelOptions.map(ch => <option key={ch} value={ch}>{ch}</option>)}
                         </select>
                     </div>
                     <button onClick={handleReset} className="h-8 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs font-bold border border-gray-300">Reset</button>
@@ -290,7 +288,7 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                                 <th className="px-4 py-3 text-center sticky left-0 bg-gray-100 z-10 w-16">Call</th>
                                 <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('prospect_id')}>ID {renderSortIcon('prospect_id')}</th>
                                 <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3">Deskripsi</th>
+                                <th className="px-4 py-3">Description</th>
                                 <th className="px-4 py-3">Prio</th>
                                 <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 transition" onClick={() => handleSort('score')}>Score {renderSortIcon('score')}</th>
                                 <th className="px-4 py-3">Job</th>
@@ -305,7 +303,7 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                             {prospects.data.length > 0 ? (
                                 prospects.data.map((item) => <SalesRow key={item.prospect_id} item={item} onCallClick={handleCallClick} />)
                             ) : (
-                                <tr><td colSpan="13" className="px-6 py-10 text-center text-gray-500 italic">Data tidak ditemukan.</td></tr>
+                                <tr><td colSpan="13" className="px-6 py-10 text-center text-gray-500 italic">Data not found.</td></tr>
                             )}
                         </tbody>
                     </table>

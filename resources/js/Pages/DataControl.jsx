@@ -1,7 +1,7 @@
 import SidebarLayout from '@/Layouts/SidebarLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import { FaEdit, FaSave, FaTimes, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
-import { useState, useEffect } from 'react';
+import { useState} from 'react';
 
 // --- OPTIONS CONSTANTS (Sama dengan Dashboard) ---
 const OPT_JOBS = ['admin.', 'services', 'management', 'blue-collar', 'entrepreneur', 'student', 'technician', 'housemaid', 'self-employed', 'unemployed', 'retired'];
@@ -53,7 +53,7 @@ const ControlRow = ({ item }) => {
                         onKeyDown={handleKeyDown} // <--- Added here
                         className={`text-xs border-gray-300 rounded px-1 py-1 shadow-sm ${width} ${isNull ? 'border-red-500 bg-red-50' : ''}`}
                     >
-                        <option value="">-- Pilih --</option>
+                        <option value="">-- Choose --</option>
                         {options.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
                     </select>
                 );
@@ -82,12 +82,12 @@ const ControlRow = ({ item }) => {
                 {isEditing ? (
                     <div className="flex justify-center items-center gap-2">
                         <button onClick={handleSave} className="text-green-600 p-1 hover:bg-green-100 rounded" title="Simpan (Enter)"><FaSave /></button>
-                        <button onClick={() => { setIsEditing(false); setValues({...item}); }} className="text-red-500 p-1 hover:bg-red-100 rounded" title="Batal (Esc)"><FaTimes /></button>
+                        <button onClick={() => { setIsEditing(false); setValues({...item}); }} className="text-red-500 p-1 hover:bg-red-100 rounded" title="Cancel (Esc)"><FaTimes /></button>
                     </div>
                 ) : (
                     <div className="flex justify-center items-center gap-2">
                         <button onClick={() => setIsEditing(true)} className="text-blue-500 p-1.5 hover:bg-blue-100 rounded" title="Edit Data"><FaEdit /></button>
-                        <button onClick={handleDelete} className="text-red-500 p-1.5 hover:bg-red-100 rounded" title="Hapus"><FaTrash size={12}/></button>
+                        <button onClick={handleDelete} className="text-red-500 p-1.5 hover:bg-red-100 rounded" title="Delete"><FaTrash size={12}/></button>
                     </div>
                 )}
             </td>
@@ -108,13 +108,6 @@ const ControlRow = ({ item }) => {
 };
 // --- MAIN PAGE ---
 export default function DataControl({ prospects }) {
-    
-    useEffect(() => { 
-        document.body.style.zoom = "67%"; 
-        return () => { 
-            document.body.style.zoom = "100%"; 
-        }; 
-    }, []);
 
     return (
         <SidebarLayout header="Data Control (Fix Missing Values)">
@@ -129,9 +122,9 @@ export default function DataControl({ prospects }) {
                     <div className="ml-4">
                         {/* Mengubah text-sm menjadi text-base agar lebih besar */}
                         <p className="text-base text-yellow-800 leading-relaxed">
-                            Halaman ini menampilkan data yang <b>tidak lengkap (NULL)</b>. 
-                            Data di bawah ini <b>TIDAK AKAN</b> masuk proses prediksi AI sampai Anda melengkapi kolom yang kosong (bertanda merah).
-                            Setelah dilengkapi, data otomatis pindah ke Dashboard utama.
+                            This page displays <b>incomplete (NULL)</b> data. 
+                            The records below will <b>NOT</b> be processed by the AI until you fill in the empty columns (marked in red). 
+                            Once completed, the data will automatically move to the main Dashboard.
                         </p>
                     </div>
                 </div>
@@ -142,7 +135,7 @@ export default function DataControl({ prospects }) {
                 <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                     <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
                         <FaExclamationTriangle className="text-orange-500"/> 
-                        Daftar Incomplete Data <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">{prospects.total}</span>
+                        List Incomplete Data <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">{prospects.total}</span>
                     </h3>
                 </div>
 
@@ -174,7 +167,7 @@ export default function DataControl({ prospects }) {
                                 <tr>
                                     <td colSpan="13" className="px-6 py-10 text-center text-green-600 font-bold bg-green-50">
                                         <div className="flex flex-col items-center justify-center gap-2">
-                                            <span>Semua data bersih! Tidak ada data kosong.</span>
+                                            <span>All data is clean! No empty data.</span>
                                         </div>
                                     </td>
                                 </tr>
