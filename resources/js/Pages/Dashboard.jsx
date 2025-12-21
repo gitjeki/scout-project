@@ -8,16 +8,16 @@ import {
     FaFire, FaPhoneAlt, FaStopwatch, FaRegCalendarAlt, FaProjectDiagram,
     FaSort, FaSortUp, FaSortDown,
     FaCog, FaListUl, FaMoneyBillWave, FaCheckDouble, FaSearch, FaRedo,
-    FaClock, FaCalendarAlt, FaGlobeAsia, FaUserTie
+    FaClock, FaCalendarAlt, FaGlobeAsia, FaUserTie, FaUser, FaLock
 } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
 // ==========================================
-// 1. COMPONENT: DASHBOARD SECTION (SAMA SEPERTI PROSPECT.JSX + GLOBAL)
+// 1. COMPONENT: DASHBOARD SECTION
 // ==========================================
 const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, userName }) => {
     
-    // --- 1. Helper Warna (SAMA PERSIS DENGAN PROSPECT.JSX) ---
+    // --- 1. Helper Warna ---
     const getBorderColor = (code) => {
         const colors = {
             'CONTACTED': 'border-blue-200 bg-blue-50 text-blue-700',
@@ -33,7 +33,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
     return (
         <div className="mb-8 space-y-8 animate-fade-in-up">
             
-            {/* BAGIAN A: KINERJA HARIAN (SAMA SEPERTI GAMBAR 1) */}
+            {/* BAGIAN A: KINERJA HARIAN */}
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <FaChartPie className="text-orange-500" /> Daily Performance: {userName}
@@ -71,7 +71,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                 </div>
             </div>
 
-            {/* BAGIAN B: PERSONAL PIPELINE (LOGIC DARI PROSPECT.JSX) */}
+            {/* BAGIAN B: PERSONAL PIPELINE */}
             <div>
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-blue-500 pl-2">
                     <FaUserTie /> Personal Pipeline Overview (Yours)
@@ -95,7 +95,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
                 </div>
             </div>
 
-            {/* BAGIAN C: GLOBAL PIPELINE (Logic Snapshot / Tim) */}
+            {/* BAGIAN C: GLOBAL PIPELINE */}
             <div>
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-l-4 border-orange-500 pl-2">
                     <FaGlobeAsia /> Global Pipeline (The Whole Team)
@@ -126,7 +126,7 @@ const DashboardSection = ({ personalStats, personalPipeline, globalPipeline, use
     );
 };
 
-// --- COMPONENTS (Helpers - Existing) ---
+// --- COMPONENTS (Helpers) ---
 
 const StatsCard = ({ icon: Icon, color, title, value, unit, description }) => {
     let colors = {
@@ -294,10 +294,21 @@ const ConfigurationModal = ({ isOpen, onClose, template }) => {
     );
 };
 
-const InputGroup = ({ label, type = "text", placeholder, value, onChange, error }) => (
+// --- UPDATED INPUT GROUP (Supports readOnly) ---
+const InputGroup = ({ label, type = "text", placeholder, value, onChange, error, readOnly = false }) => (
     <div className="flex flex-col">
-        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize">{label} <span className="text-red-500">*</span></label>
-        <input type={type} value={value} onChange={onChange} className="text-base border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 py-2.5 px-3 shadow-sm" placeholder={placeholder} />
+        <label className="text-sm font-bold text-gray-700 mb-1.5 capitalize flex justify-between">
+            <span>{label} <span className="text-red-500">*</span></span>
+            {readOnly && <span className="text-[10px] text-gray-400 font-normal italic flex items-center gap-1"><FaLock size={8}/> (Via Config)</span>}
+        </label>
+        <input 
+            type={type} 
+            value={value} 
+            onChange={readOnly ? undefined : onChange} 
+            readOnly={readOnly}
+            className={`text-base border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 py-2.5 px-3 shadow-sm ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed focus:ring-0' : 'bg-white'}`} 
+            placeholder={placeholder} 
+        />
         {error && <span className="text-red-500 text-xs mt-1 font-medium">{error}</span>}
     </div>
 );
@@ -315,6 +326,7 @@ const SelectGroup = ({ label, options, value, onChange, error }) => (
 const OPT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const OPT_POUTCOME = ['nonexistent', 'failure', 'success'];
 
+// --- UPDATED CREATE PROSPECT MODAL (Economic Indicators ReadOnly) ---
 const CreateProspectModal = ({ isOpen, onClose, template }) => {
     const defaults = template?.defaults || {};
     const dropdowns = template?.dropdowns || { jobs: [], education: [] };
@@ -356,10 +368,11 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                             <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Economic Indicators</h4>
                             <div className="grid grid-cols-2 gap-4">
-                                <InputGroup label="Cons. Price Idx" type="number" value={data.cons_price_idx} onChange={e => setData('cons_price_idx', e.target.value)} error={errors.cons_price_idx} />
-                                <InputGroup label="Cons. Conf. Idx" type="number" value={data.cons_conf_idx} onChange={e => setData('cons_conf_idx', e.target.value)} error={errors.cons_conf_idx} />
-                                <InputGroup label="Euribor 3M" type="number" value={data.euribor3m} onChange={e => setData('euribor3m', e.target.value)} error={errors.euribor3m} />
-                                <InputGroup label="Nr. Employed" type="number" value={data.nr_employed} onChange={e => setData('nr_employed', e.target.value)} error={errors.nr_employed} />
+                                {/* READ ONLY FIELDS: Controlled via Configuration Modal */}
+                                <InputGroup label="Cons. Price Idx" type="number" value={data.cons_price_idx} readOnly={true} />
+                                <InputGroup label="Cons. Conf. Idx" type="number" value={data.cons_conf_idx} readOnly={true} />
+                                <InputGroup label="Euribor 3M" type="number" value={data.euribor3m} readOnly={true} />
+                                <InputGroup label="Nr. Employed" type="number" value={data.nr_employed} readOnly={true} />
                             </div>
                         </div>
                     </div>
@@ -471,7 +484,7 @@ const ProspectRow = ({ item, isAdmin, isSelected, onToggleSelect, onDeleteReques
 
 // --- MAIN PAGE COMPONENT ---
 
-export default function Dashboard({ stats, prospects, statusOptions = [], filters = {}, personalStats, personalPipelineStats, globalPipelineStats, formTemplate }) {
+export default function Dashboard({ stats, prospects, statusOptions = [], scoringUsers = [], filters = {}, personalStats, personalPipelineStats, globalPipelineStats, formTemplate }) {
     const { auth, flash, errors } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const isSales = auth.user.role === 'sales';
@@ -482,7 +495,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     // --- STATE FILTER ---
     const [filterStatus, setFilterStatus] = useState(filters.status || '');
     const [filterPriority, setFilterPriority] = useState(filters.priority || '');
-    const [searchId, setSearchId] = useState(filters.search_id || ''); // State untuk Search ID
+    const [filterScoredBy, setFilterScoredBy] = useState(filters.scored_by || ''); // Baru
+    const [filterScoredAt, setFilterScoredAt] = useState(filters.scored_at || ''); // Baru
+    const [searchId, setSearchId] = useState(filters.search_id || ''); 
 
     const [sortField, setSortField] = useState(filters.sort_field || 'id');
     const [sortDirection, setSortDirection] = useState(filters.sort_direction || 'desc');
@@ -495,11 +510,13 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     useEffect(() => { 
         setSelectedIds([]); 
         setSelectAllMatching(false); 
-    }, [filterStatus, filterPriority, sortField, sortDirection, prospects.current_page, searchId]);
+    }, [filterStatus, filterPriority, filterScoredBy, filterScoredAt, sortField, sortDirection, prospects.current_page, searchId]);
     
     const handleFilterChange = (key, value) => {
         let newStatus = key === 'status' ? value : filterStatus;
         let newPriority = key === 'priority' ? value : filterPriority;
+        let newScoredBy = key === 'scored_by' ? value : filterScoredBy;
+        let newScoredAt = key === 'scored_at' ? value : filterScoredAt;
         
         let newSortField = sortField;
         let newSortDirection = sortDirection;
@@ -513,11 +530,15 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
         if (key === 'status') setFilterStatus(value);
         if (key === 'priority') setFilterPriority(value);
+        if (key === 'scored_by') setFilterScoredBy(value);
+        if (key === 'scored_at') setFilterScoredAt(value);
 
         router.get(route('dashboard'), { 
             status: newStatus, 
             priority: newPriority,
-            search_id: searchId, // Sertakan search_id
+            scored_by: newScoredBy,
+            scored_at: newScoredAt,
+            search_id: searchId, 
             sort_field: newSortField, 
             sort_direction: newSortDirection 
         }, { preserveState: true, replace: true });
@@ -529,7 +550,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), { 
             status: filterStatus, 
             priority: filterPriority,
-            search_id: searchId, // Kirim ID
+            scored_by: filterScoredBy,
+            scored_at: filterScoredAt,
+            search_id: searchId, 
             sort_field: sortField, 
             sort_direction: sortDirection 
         }, { preserveState: true, replace: true });
@@ -538,6 +561,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
     const handleResetFilters = () => {
         setFilterStatus('');
         setFilterPriority('');
+        setFilterScoredBy('');
+        setFilterScoredAt('');
         setSearchId('');
         // Reset ke halaman dashboard tanpa parameter query
         router.get(route('dashboard'));
@@ -553,6 +578,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
         router.get(route('dashboard'), {
             status: filterStatus,
             priority: filterPriority,
+            scored_by: filterScoredBy,
+            scored_at: filterScoredAt,
             search_id: searchId,
             sort_field: field,
             sort_direction: newDirection
@@ -710,7 +737,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
             {isAdmin && (
                 <>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto flex-wrap">
                         
                         {/* INPUT SEARCH BY ID */}
                         <form onSubmit={handleSearchId} className="flex items-center gap-2 w-full md:w-auto">
@@ -728,20 +755,42 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
 
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFilter className="text-gray-400" />
-                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">All Status</option>
+                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Semua Status</option>
                                 {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
+                        
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFire className="text-gray-400" />
                             <select value={filterPriority} onChange={(e) => handleFilterChange('priority', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">All Priority</option>
+                                <option value="">Semua Prioritas</option>
                                 <option value="1">High (1)</option>
                                 <option value="2">Medium (2)</option>
                                 <option value="3">Low (3)</option>
                             </select>
                         </div>
+
+                          {/* [BARU] FILTER SCORED BY */}
+                          <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaUser className="text-gray-400" />
+                            <select value={filterScoredBy} onChange={(e) => handleFilterChange('scored_by', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Scored By</option>
+                                {scoringUsers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* [BARU] FILTER SCORED AT */}
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <FaClock className="text-gray-400" />
+                            <select value={filterScoredAt} onChange={(e) => handleFilterChange('scored_at', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-36 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Scored At</option>
+                                <option value="today">Hari Ini</option>
+                                <option value="this_week">Minggu Ini</option>
+                                <option value="this_month">Bulan Ini</option>
+                            </select>
+                        </div>
+
                         <button 
                                 onClick={handleResetFilters}
                                 title="Reset Filter"
@@ -749,7 +798,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], filter
                             >
                                 <FaRedo /> <span className="hidden md:inline text-xs font-bold">Reset</span>
                             </button>
-                                                                </div>
+                                                                                </div>
 
                     <div className="flex gap-2 w-full md:w-auto justify-end">
                         <button 

@@ -39,6 +39,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     // Penugasan (Assignment)
     Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
     Route::post('/assignments/assign', [AssignmentController::class, 'assign'])->name('assignments.assign');
+    Route::get('/assignments/get-ids', [AssignmentController::class, 'getIds'])->name('assignments.get-ids');
+
 
     // Action Admin di Dashboard (Import, Prediksi, Config)
     Route::post('/dashboard/import', [DashboardController::class, 'import'])->name('dashboard.import');
