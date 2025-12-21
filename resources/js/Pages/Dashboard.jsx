@@ -348,27 +348,40 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
     const handleSubmit = (e) => { e.preventDefault(); post(route('dashboard.store'), { onSuccess: () => { reset(); onClose(); } }); };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 overflow-y-auto p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl m-4 p-8 relative transform transition-all">
-                <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><FaTimes size={20} /></button>
-                <h3 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4 flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><FaPlus size={24} /></div> Add Prospects Manually
-                </h3>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+    {/* 1. CONTAINER UTAMA: Hapus padding (p-6) di sini, ubah jadi Flex Column */}
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl m-4 relative flex flex-col max-h-[90vh]">
+        
+        {/* 2. HEADER: Area ini diam (static). Pindahkan tombol close ke sini agar rapi. */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white rounded-t-2xl z-10">
+            <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><FaPlus size={24} /></div> 
+                Add Prospects Manually
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
+                <FaTimes size={20} />
+            </button>
+        </div>
+
+        {/* 3. FORM WRAPPER: Menggunakan flex-1 agar mengisi sisa ruang, tapi hidden overflow agar scroll ditangani anaknya */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            
+            {/* 4. SCROLLABLE AREA: Hanya area ini yang boleh di-scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
                         <InputGroup label="Age" type="number" value={data.age} onChange={e => setData('age', e.target.value)} error={errors.age} />
                         <SelectGroup label="Job" options={dropdowns.jobs} value={data.job} onChange={e => setData('job', e.target.value)} error={errors.job} />
                         <SelectGroup label="Education" options={dropdowns.education} value={data.education} onChange={e => setData('education', e.target.value)} error={errors.education} />
                         <SelectGroup label="Month" options={OPT_MONTHS} value={data.month} onChange={e => setData('month', e.target.value)} error={errors.month} />
                         <SelectGroup label="Poutcome" options={OPT_POUTCOME} value={data.poutcome} onChange={e => setData('poutcome', e.target.value)} error={errors.poutcome} />
                     </div>
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                         <InputGroup label="Duration" type="number" value={data.duration} onChange={e => setData('duration', e.target.value)} error={errors.duration} />
                         <InputGroup label="Campaign" type="number" value={data.campaign} onChange={e => setData('campaign', e.target.value)} error={errors.campaign} />
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                             <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Economic Indicators</h4>
                             <div className="grid grid-cols-2 gap-4">
-                                {/* READ ONLY FIELDS: Controlled via Configuration Modal */}
                                 <InputGroup label="Cons. Price Idx" type="number" value={data.cons_price_idx} readOnly={true} />
                                 <InputGroup label="Cons. Conf. Idx" type="number" value={data.cons_conf_idx} readOnly={true} />
                                 <InputGroup label="Euribor 3M" type="number" value={data.euribor3m} readOnly={true} />
@@ -376,15 +389,20 @@ const CreateProspectModal = ({ isOpen, onClose, template }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="col-span-1 md:col-span-2 flex justify-end gap-4 mt-6 pt-6 border-t">
-                        <button type="button" onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition">Cancel</button>
-                        <button type="submit" disabled={processing} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg flex items-center gap-3 transition hover:shadow-xl">
-                            {processing ? 'Saving...' : <><FaSave size={18} /> Save Data</>}
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+
+            {/* 5. FOOTER: Area ini diam di bawah (Fixed footer) */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-4 z-10">
+                <button type="button" onClick={onClose} className="px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition">Cancel</button>
+                <button type="submit" disabled={processing} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg flex items-center gap-3 transition hover:shadow-xl">
+                    {processing ? 'Saving...' : <><FaSave size={18} /> Save Data</>}
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
     );
 };
 
@@ -755,8 +773,8 @@ export default function Dashboard({ stats, prospects, statusOptions = [], scorin
 
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFilter className="text-gray-400" />
-                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Semua Status</option>
+                            <select value={filterStatus} onChange={(e) => handleFilterChange('status', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-48 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">All Status</option>
                                 {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
@@ -764,7 +782,7 @@ export default function Dashboard({ stats, prospects, statusOptions = [], scorin
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             <FaFire className="text-gray-400" />
                             <select value={filterPriority} onChange={(e) => handleFilterChange('priority', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-40 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Semua Prioritas</option>
+                                <option value="">All Priority</option>
                                 <option value="1">High (1)</option>
                                 <option value="2">Medium (2)</option>
                                 <option value="3">Low (3)</option>
@@ -785,9 +803,9 @@ export default function Dashboard({ stats, prospects, statusOptions = [], scorin
                             <FaClock className="text-gray-400" />
                             <select value={filterScoredAt} onChange={(e) => handleFilterChange('scored_at', e.target.value)} className="border-gray-300 rounded text-sm w-full md:w-36 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Scored At</option>
-                                <option value="today">Hari Ini</option>
-                                <option value="this_week">Minggu Ini</option>
-                                <option value="this_month">Bulan Ini</option>
+                                <option value="today">Today</option>
+                                <option value="this_week">This Week</option>
+                                <option value="this_month">This Month</option>
                             </select>
                         </div>
 

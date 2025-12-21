@@ -87,8 +87,8 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
             // alert(`Berhasil memilih ${response.data.length} data teratas.`);
             
         } catch (error) {
-            console.error("Gagal mengambil ID", error);
-            alert("Gagal melakukan auto select.");
+            console.error("Failed to retrieve ID", error);
+            alert("Failed to auto select.");
         } finally {
             setIsLoadingSelect(false);
         }
@@ -96,7 +96,7 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
 
     // --- MODAL ACTION (Sederhana Kembali) ---
     const openAssignModal = () => {
-        if (selectedIds.length === 0) { alert('Pilih data terlebih dahulu!'); return; }
+        if (selectedIds.length === 0) { alert('Select the data first!'); return; }
         // Masukkan ID yang sudah terpilih (baik manual maupun auto select) ke form
         setData({
             sales_id: '',
@@ -140,22 +140,22 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                             {/* Filter Section */}
                             <div className="flex flex-wrap gap-2">
                                 <form onSubmit={handleSearchSubmit} className="flex gap-2">
-                                    <input type="text" placeholder="Cari ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm w-32 focus:ring-orange-500" />
+                                    <input type="text" placeholder="Search ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm w-32 focus:ring-orange-500" />
                                     <button type="submit" className="bg-gray-100 border border-gray-300 rounded px-3 text-gray-600"><FaSearch /></button>
                                 </form>
                                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm w-32 lg:w-auto">
-                                    <option value="">Semua Status</option>
+                                    <option value="">All Status</option>
                                     {statuses.map((s, idx) => <option key={idx} value={s.status_code}>{s.status_code}</option>)}
                                 </select>
                                 <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm w-32 lg:w-auto">
-                                    <option value="">Semua Prioritas</option>
+                                    <option value="">All Priority</option>
                                     <option value="1">High (1)</option>
                                     <option value="2">Medium (2)</option>
                                     <option value="3">Low (3)</option>
                                 </select>
                                 <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm w-40 lg:w-auto">
-                                    <option value="unassigned">-- Unassigned --</option>
-                                    <option value="assigned">Semua Telemarketer</option>
+                                    <option value="unassigned">Unassigned</option>
+                                    <option value="assigned">All Sales</option>
                                     {salesAgents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
                                 </select>
                                 <button onClick={handleReset} title="Reset Filter" className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 px-3 py-2 rounded text-sm"><FaRedo /></button>
@@ -164,7 +164,7 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                             {/* --- BUTTONS: AUTO SELECT --- */}
                             <div className="mt-2 flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center">
-                                    <FaBolt className="mr-1 text-yellow-500"/> Pilih Cepat:
+                                    <FaBolt className="mr-1 text-yellow-500"/> Quick Pick:
                                 </span>
                                 {[100, 250, 500, 750, 1000, 2500, 5000, 10000].map(num => (
                                     <button
@@ -187,7 +187,7 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                         <div className="flex items-center gap-4 justify-end w-full xl:w-1/3">
                             <div className="text-gray-600 text-sm text-right">
                                 Total: {prospects.total} <br/>
-                                <span className="font-bold text-orange-600">{selectedIds.length} dipilih</span>
+                                <span className="font-bold text-orange-600">{selectedIds.length} selected</span>
                             </div>
                             
                             {/* Tombol Assign (Satu-satunya tombol eksekusi) */}
@@ -197,7 +197,7 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                                 className={`flex items-center px-4 py-2 rounded shadow text-white font-medium transition
                                     ${selectedIds.length > 0 ? 'bg-orange-500 hover:bg-orange-600 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'}`}
                             >
-                                <FaPaperPlane className="mr-2" /> Kirim / Tugaskan
+                                <FaPaperPlane className="mr-2" /> Assign
                             </button>
                         </div>
                     </div>
@@ -240,7 +240,7 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan="6" className="px-6 py-4 text-center">Tidak ada data.</td></tr>
+                                    <tr><td colSpan="6" className="px-6 py-4 text-center">No data.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -263,22 +263,22 @@ export default function AssignmentIndex({ prospects, salesAgents, statuses, filt
                 {/* --- MODAL PILIH SALES (STANDAR) --- */}
                 <Modal show={isModalOpen} onClose={closeModal} maxWidth="md">
                     <form onSubmit={submitAssignment} className="p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4">Pilih Sales Agent</h2>
+                        <h2 className="text-lg font-medium text-gray-900 mb-4">Select Sales Agent</h2>
                         <p className="text-sm text-gray-600 mb-4">
                             You will be assigned <span className="font-bold">{selectedIds.length}</span> selected prospects to the following sales:
                         </p>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Sales</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Sales Name</label>
                             <select value={data.sales_id} onChange={(e) => setData('sales_id', e.target.value)} className="w-full border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring focus:ring-orange-200" required>
-                                <option value="">-- Pilih Sales --</option>
+                                <option value="">Select Sales</option>
                                 {salesAgents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
                             </select>
                             {errors.sales_id && <div className="text-red-500 text-sm mt-1">{errors.sales_id}</div>}
                         </div>
                         <div className="flex justify-end gap-2 mt-6">
-                            <button type="button" onClick={closeModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">Batal</button>
+                            <button type="button" onClick={closeModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">Cancel</button>
                             <button type="submit" disabled={processing} className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition flex items-center">
-                                {processing ? 'Menyimpan...' : 'Simpan Penugasan'}
+                                {processing ? 'Saving...' : 'Save Assignment'}
                             </button>
                         </div>
                     </form>
