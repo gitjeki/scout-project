@@ -49,8 +49,9 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions, currentPa
             call_duration_sec: duration,
             contact_channel: channel,
             current_page: currentPage,
-            sort_field: new URLSearchParams(window.location.search).get('sort_field'),
-            sort_direction: new URLSearchParams(window.location.search).get('sort_direction'),
+            // Pertahankan sorting saat ini setelah save
+            sort_field: new URLSearchParams(window.location.search).get('sort_field') || 'score',
+            sort_direction: new URLSearchParams(window.location.search).get('sort_direction') || 'desc',
         }, {
             onSuccess: () => onClose(),
             preserveScroll: true
@@ -146,7 +147,7 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
     const [selectedProspect, setSelectedProspect] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // LOGIC UTAMA: Deteksi Refresh Page (F5) -> Force Reset
+    // LOGIC UTAMA: Deteksi Refresh Page (F5) -> Force Reset (Opsional, sesuaikan kebutuhan)
     useEffect(() => {
         const navEntry = performance.getEntriesByType("navigation")[0];
         if (navEntry && navEntry.type === 'reload' && window.location.search) {
@@ -158,51 +159,54 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
         }
     }, []);
 
-    // UPDATE: Hapus filter_telemarketer, Tambah filter_last_contact
+    // 1. DEFAULT SORTING: SCORE DESC
     const { data, setData, reset } = useForm({
         search: filters.search || '', 
         filter_status: filters.filter_status || '',
         filter_priority: filters.filter_priority || '', 
-        filter_last_contact: filters.filter_last_contact || '', // Field Baru
+        filter_last_contact: filters.filter_last_contact || '', 
         filter_channel: filters.filter_channel || '', 
-        sort_field: filters.sort_field || 'created_at',
+        // UBAH DEFAULT DISINI: SCORE DESC
+        sort_field: filters.sort_field || 'score',
         sort_direction: filters.sort_direction || 'desc', 
         page: filters.page || 1,
     });
 
+    // Update state local saat filters dari props berubah (misal dari Back button browser)
     useEffect(() => {
         setData({
             ...data,
             search: filters.search || '',
             filter_status: filters.filter_status || '',
             filter_priority: filters.filter_priority || '',
-            filter_last_contact: filters.filter_last_contact || '', // Field Baru
+            filter_last_contact: filters.filter_last_contact || '',
             filter_channel: filters.filter_channel || '',
-            sort_field: filters.sort_field || 'created_at',
+            // Pastikan fallback ke score desc jika kosong
+            sort_field: filters.sort_field || 'score',
             sort_direction: filters.sort_direction || 'desc',
             page: filters.page || 1,
         });
     }, [filters]);
 
-    // 1. FILTER OTOMATIS
+    // 2. FILTER CHANGE
     const handleFilterChange = useCallback((key, value) => {
         setData(key, value);
-        // Menggunakan value langsung agar tidak menunggu state update (fix sluggishness)
+        // Reset page ke 1 setiap kali filter berubah
         const queryParams = { ...data, [key]: value, page: 1 };
         router.get(route('sales.prospects.index'), queryParams, { preserveState: true, preserveScroll: true, replace: true });
     }, [data, setData]);
 
-    // 2. SEARCH (ENTER ONLY)
+    // 3. SEARCH (ENTER ONLY)
     const handleSearch = () => {
         router.get(route('sales.prospects.index'), { ...data, page: 1 }, { preserveState: true, preserveScroll: true, replace: true });
     };
 
-    // 3. MANUAL RESET
+    // 4. MANUAL RESET (Kembali ke Default Score Desc)
     const handleReset = () => {
         const emptyState = {
             search: '', filter_status: '', filter_priority: '', 
             filter_last_contact: '', filter_channel: '',
-            sort_field: 'created_at', sort_direction: 'desc', page: 1
+            sort_field: 'score', sort_direction: 'desc', page: 1
         };
         setData(emptyState);
         router.get(route('sales.prospects.index'), {}, { preserveState: false, preserveScroll: true });
@@ -217,6 +221,26 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
         router.get(route('sales.prospects.index'), {
             ...data, sort_field: field, sort_direction: newDirection, page: 1
         }, { preserveState: true, preserveScroll: true });
+    };
+
+    // 5. FIX PAGINATION: Handle Pindah Halaman agar filter terbawa
+    const handlePageChange = (url) => {
+        if (!url) return;
+        try {
+            const urlObj = new URL(url);
+            const pageParam = urlObj.searchParams.get('page');
+            
+            // Update state page lokal
+            setData('page', pageParam);
+
+            // Request ke router dengan menggabungkan semua state DATA saat ini + page baru
+            router.get(route('sales.prospects.index'), {
+                ...data, // Ini kunci agar filter tidak hilang
+                page: pageParam
+            }, { preserveState: true, preserveScroll: true });
+        } catch (e) {
+            console.error("Invalid URL for pagination", e);
+        }
     };
 
     const handleCallClick = (prospect) => { setSelectedProspect(prospect); setIsModalOpen(true); };
@@ -245,8 +269,17 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                 {/* FILTERS */}
                 <div className="p-3 bg-white border-b border-gray-200 grid grid-cols-6 gap-2 items-end">
                     <div>
-                        <label className="text-[10px] font-bold text-gray-500">Search ID (Enter)</label>
-                        <input type="text" value={data.search} onChange={(e) => setData('search', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="w-full text-xs border-gray-300 rounded h-8" placeholder="ID then Enter..." />
+                        <label className="text-[10px] font-bold text-gray-500">Search ID...</label>
+                        {/* --- PERUBAHAN DI SINI: INPUT HANYA ANGKA --- */}
+                        <input 
+                            type="text" 
+                            inputMode="numeric"
+                            value={data.search} 
+                            onChange={(e) => setData('search', e.target.value.replace(/\D/g, ''))} 
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()} 
+                            className="w-full text-xs border-gray-300 rounded h-8" 
+                            placeholder="ID (Numbers only)..." 
+                        />
                     </div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Status</label>
@@ -261,7 +294,6 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                         </select>
                     </div>
                     
-                    {/* FILTER BARU: LAST CONTACT */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-500 flex items-center gap-1"><FaCalendarAlt size={10}/> Last Contact</label>
                         <select value={data.filter_last_contact} onChange={(e) => handleFilterChange('filter_last_contact', e.target.value)} className="w-full text-xs border-gray-300 rounded h-8">
@@ -309,9 +341,21 @@ export default function Prospects({ prospects, statusOptions, channelOptions, fi
                     </table>
                 </div>
 
+                {/* MODIFIED PAGINATION */}
                 <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-1 justify-end">
                     {prospects.links.map((link, key) => (
-                        <Link key={key} href={link.url || '#'} dangerouslySetInnerHTML={{ __html: link.label }} className={`px-3 py-1 text-xs border rounded transition ${link.active ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'} ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                        <button
+                            key={key}
+                            disabled={!link.url}
+                            onClick={() => handlePageChange(link.url)}
+                            dangerouslySetInnerHTML={{ __html: link.label }}
+                            className={`px-3 py-1 text-xs border rounded transition 
+                                ${link.active 
+                                    ? 'bg-orange-600 text-white border-orange-600' 
+                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'} 
+                                ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}
+                            `}
+                        />
                     ))}
                 </div>
             </div>

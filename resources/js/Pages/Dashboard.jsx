@@ -804,9 +804,10 @@ export default function Dashboard({ stats, prospects, statusOptions = [], scorin
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs" />
                             <input 
                                 type="text" 
+                                inputMode="numeric"
                                 placeholder="Search ID..." 
                                 value={searchId}
-                                onChange={(e) => setSearchId(e.target.value)}
+                                onChange={(e) => setSearchId(e.target.value.replace(/\D/g, ''))} // HANYA ANGKA
                                 className="pl-8 pr-3 py-2 border-gray-300 rounded-lg text-xs w-full focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                             />
                         </form>
