@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+<<<<<<< HEAD
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -21,12 +22,35 @@ return new class extends Migration
             $table->timestamps();
         });
 
+=======
+        // 1. TABEL USERS
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('username', 50)->unique()->nullable();
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password_hash');
+            $table->string('office_phone', 30)->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->string('role', 20)->default('sales'); 
+            $table->rememberToken();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // 2. TABEL PASSWORD RESET TOKENS
+>>>>>>> origin/final
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
+<<<<<<< HEAD
+=======
+        // 3. TABEL SESSIONS
+>>>>>>> origin/final
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -35,6 +59,23 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
+<<<<<<< HEAD
+=======
+
+        // 4. TABEL CACHE (INI YANG BIKIN ERROR LOGIN)
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration');
+        });
+
+        // 5. TABEL CACHE LOCKS
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration');
+        });
+>>>>>>> origin/final
     }
 
     /**
@@ -45,5 +86,12 @@ return new class extends Migration
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+<<<<<<< HEAD
     }
 };
+=======
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
+>>>>>>> origin/final

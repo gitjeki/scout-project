@@ -57,3 +57,41 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+<<<<<<< HEAD
+=======
+
+
+## petunjuk
+buat database Bernama scout_project di postgree
+
+buat file .env
+copy semua isi dari .envexample ke .env (password database nya sesuaikan)
+
+terminal 1=
+(awal - awal doang)
+composer install
+
+npm run build 
+
+php artisan migrate --seed
+
+(setiap mau pakai)
+php artisan serve 
+
+
+
+terminal 2=
+(awal - awal doang)
+
+cd ml_api
+
+python -m venv venv
+
+venv\Scripts\activate
+
+pip install flask pandas joblib scikit-learn
+
+(setiap mau pakai, pastikan di folder ml_api dan venv nyala)
+python ml_api.py
+
+>>>>>>> origin/final
