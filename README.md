@@ -60,7 +60,7 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=scout_project
 DB_USERNAME=postgres
-DB_PASSWORD=dzakyfauzan23
+DB_PASSWORD=your_password
 ```
 
 ### 3. Setup Database
